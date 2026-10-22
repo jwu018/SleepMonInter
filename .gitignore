@@ -1,0 +1,41 @@
+# Root .gitignore. Patterns without a leading "/" match in every subfolder,
+# so this one file covers tools/, web/, and (later) api/.
+
+# --- Secrets / environment ---
+# Real env files hold keys and must never be committed.
+# The example file is the one exception: it documents variable names with placeholders.
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+.vercel/
+
+# --- Local raw-file store (Phase 4) ---
+# Uploaded recordings live here in dev; only the committed sample_data/ set belongs in git.
+file_store/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

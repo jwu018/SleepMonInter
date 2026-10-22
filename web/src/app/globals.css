@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/*
+  Color tokens. Components use names like `bg-surface` or `text-muted` instead of
+  raw colors, so dark mode only has to be defined once, here.
+*/
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --surface: #f5f6f8;
+  --muted: #5b6270;
+  --border: #e3e5e9;
+  --banner: #fde68a;
+  --banner-foreground: #422006;
+}
+
+/* Follows the operating system's light/dark setting. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b0d10;
+    --foreground: #e8eaed;
+    --surface: #15181d;
+    --muted: #9aa1ad;
+    --border: #262a31;
+    --banner: #713f12;
+    --banner-foreground: #fef3c7;
+  }
+}
+
+/* `@theme inline` turns the variables above into Tailwind classes (bg-surface, text-muted, ...). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-banner: var(--banner);
+  --color-banner-foreground: var(--banner-foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
