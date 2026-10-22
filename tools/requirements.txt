@@ -1,0 +1,4 @@
+# Runtime dependencies for the scripts in tools/.
+# Pinned exactly so the same seed produces the same synthetic files on every machine.
+numpy==2.5.4
+matplotlib==3.11.2

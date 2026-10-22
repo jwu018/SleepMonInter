@@ -1,4 +1,4 @@
-// Shown on every page via the root layout (PRD §9, item 7).
+// Shown on every page via the root layout, so no screen can be mistaken for real patient data.
 // `sticky top-0` keeps it visible while scrolling long night views.
 export function PrototypeBanner() {
   return (

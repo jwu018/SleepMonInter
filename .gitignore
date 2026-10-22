@@ -8,6 +8,9 @@
 .env.*
 !.env.example
 
+# --- Private team planning doc (kept local, not published) ---
+/PRD.md
+
 # --- Python ---
 __pycache__/
 *.py[cod]

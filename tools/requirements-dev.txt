@@ -1,0 +1,4 @@
+# Development-only tools (linting/formatting and tests). Never needed at runtime.
+# Pinned so lint and test results don't change when a new version is released.
+ruff==0.17.1
+pytest==9.1.1

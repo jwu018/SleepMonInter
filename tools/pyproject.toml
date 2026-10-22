@@ -1,0 +1,16 @@
+# Tool configuration only. tools/ is a folder of scripts, not an installable package,
+# so there is no [project] table here.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# E/F: pycodestyle + pyflakes basics, I: import sorting, UP: modern syntax,
+# B: common bug patterns, NPY: numpy-specific pitfalls.
+select = ["E", "F", "I", "UP", "B", "NPY"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Lets tests `import generate_synthetic` even though tools/ isn't a package.
+pythonpath = ["."]

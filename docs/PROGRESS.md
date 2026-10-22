@@ -44,3 +44,24 @@ Newest entries at the bottom. One entry per checkpoint: what was done, decisions
 **Deferred**
 - Manual light/dark toggle (maybe during Phase 2 polish).
 - Phase 0 wrap-up: "Done when" is satisfied by `npm run dev`.
+
+## 2026-10-22 — Phase 1, Step 1: Synthetic data generator
+
+**Done**
+- `tools/` Python environment: `requirements.txt` (numpy 2.5.4, matplotlib 3.11.2), `requirements-dev.txt` (ruff 0.17.1, pytest 9.1.1), and `pyproject.toml` (ruff + pytest config only). All versions are pinned.
+- `tools/generate_synthetic.py`: builds a night breath by breath (drifting RR with jitter, asymmetric breath shape, amplitude trend and shallow stretches, 5–20 s pauses), then adds baseline wander, sensor noise, motion artifacts (spikes, bursts, baseline shifts), "band loose" no-signal stretches, and data gaps. Battery is logged once per minute. Profiles: `stable`, `declining`, `noisy`. CLI options: `--profile --seed --duration-hours --start-utc --device-id --out`.
+- `tools/plot_recording.py`: whole-night, zoom and battery panels, with data gaps shaded.
+- `tools/tests/test_generate_synthetic.py`: 7 tests (header/columns, 50 ms steps, gaps > 1 s, same seed gives the same bytes, plausible RR per profile, battery cadence and decline, unsigned raw values).
+- `docs/FILE_FORMAT.md`: public copy of the recording format and validation rules (the planning doc is private).
+- Checks: `ruff format --check` clean, `ruff check` clean, `pytest` 7 passed. An 8-hour night is about 9 MB and takes a few seconds to generate.
+
+**Decisions**
+- Added rare **data gaps** and **no-signal stretches** (not in the original realism list) so Phase 2 has `no_signal` minutes to shade and Phase 4 has gaps to detect.
+- Extra header keys `synthetic=true`, `profile`, `seed` (allowed, since readers ignore unknown keys).
+- Raw signal is centered at 50,000 counts, with a typical breath of about 300 counts peak-to-trough.
+- After looking at the plots, reduced the baseline wander (0.8 to 0.4× breath amplitude, with slower 5–30 min periods) because it was hiding the overnight amplitude decline. Fixed the zoom panel stretching to include gaps outside the window.
+- `.gitignore` now excludes `/PRD.md` (kept private). Code comments must not reference it.
+
+**Deferred**
+- Ground-truth file (Step 2). The `BreathSchedule` and `events` are already kept in memory for it.
+- Even after the reduction, the whole-night view still shows a gentle periodic ripple from the wander (a sum of 3 sines). Acceptable for now; could switch to filtered noise if it looks too regular.
