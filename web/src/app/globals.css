@@ -12,6 +12,17 @@
   --border: #e3e5e9;
   --banner: #fde68a;
   --banner-foreground: #422006;
+  --accent: #256abf;
+
+  /* Chart tokens. Charts draw on <canvas>, so they read these with getComputedStyle. */
+  --chart-grid: #e1e0d9;
+  --chart-axis: #898781;
+  --chart-series-1: #2a78d6;
+  --chart-series-2: #eb6834;
+  --chart-series-3: #1baf7a;
+  --chart-series-4: #eda100;
+  --status-warning: #fab219; /* poor-quality minutes */
+  --status-neutral: #898781; /* no-signal minutes */
 }
 
 /* Follows the operating system's light/dark setting. */
@@ -24,6 +35,14 @@
     --border: #262a31;
     --banner: #713f12;
     --banner-foreground: #fef3c7;
+    --accent: #6da7ec;
+
+    --chart-grid: #2c2c2a;
+    --chart-axis: #898781;
+    --chart-series-1: #3987e5;
+    --chart-series-2: #d95926;
+    --chart-series-3: #199e70;
+    --chart-series-4: #c98500;
   }
 }
 
@@ -36,6 +55,9 @@
   --color-border: var(--border);
   --color-banner: var(--banner);
   --color-banner-foreground: var(--banner-foreground);
+  --color-accent: var(--accent);
+  --color-status-warning: var(--status-warning);
+  --color-status-neutral: var(--status-neutral);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -44,4 +66,43 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Numbers in tables line up in columns. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* uPlot's built-in legend doubles as the hover readout; restyle it to match the app. */
+.uplot {
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+.uplot .u-legend {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: left;
+}
+.uplot .u-legend .u-value {
+  color: var(--foreground);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@media print {
+  @page {
+    size: letter;
+    margin: 12mm;
+  }
+  /* Paper is white even when the screen is in dark mode, so use the light tokens. */
+  :root {
+    --background: #ffffff;
+    --foreground: #000000;
+    --surface: #ffffff;
+    --muted: #5b6270;
+    --border: #d5d8dd;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
 }

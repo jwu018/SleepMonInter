@@ -1,0 +1,65 @@
+{
+ "truth_format": 1,
+ "source_file": "example_10min.csv",
+ "start_utc": "2026-09-14T02:30:00Z",
+ "profile": "declining",
+ "seed": 42,
+ "duration_s": 600.12,
+ "minutes": {
+  "minute_index": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "resp_rate_bpm": [
+   20.26,
+   21.39,
+   21.2,
+   21.83,
+   23.05,
+   22.56,
+   22.87,
+   24.0,
+   24.89,
+   17.95
+  ],
+  "amplitude_rel": [
+   1.14,
+   1.105,
+   1.083,
+   1.072,
+   1.031,
+   0.986,
+   0.939,
+   0.897,
+   0.828,
+   0.771
+  ],
+  "quality": [
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good"
+  ]
+ },
+ "events": [
+  {
+   "kind": "pause",
+   "start_ms": 583664,
+   "end_ms": 602061
+  }
+ ]
+}

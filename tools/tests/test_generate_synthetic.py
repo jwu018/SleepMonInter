@@ -1,11 +1,20 @@
 """Tests for the synthetic generator: file format, timing, reproducibility, plausibility."""
 
+import json
 from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 
-from generate_synthetic import PROFILES, main, simulate_night
+from generate_synthetic import (
+    PROFILES,
+    Event,
+    compute_ground_truth,
+    main,
+    minute_quality,
+    simulate_night,
+    truth_path_for,
+)
 from plot_recording import read_recording
 
 REQUIRED_HEADER_KEYS = {
@@ -81,3 +90,49 @@ def test_raw_values_are_unsigned_integers() -> None:
     night = simulate_night(PROFILES["noisy"], 1800, np.random.default_rng(5))
     assert night.raw_value.dtype.kind == "i"
     assert night.raw_value.min() >= 0
+
+
+# --- Ground truth ---------------------------------------------------------------------
+
+
+def test_truth_file_is_written_next_to_the_recording(tmp_path: Path) -> None:
+    out = generate(tmp_path, "--seed", "3")
+    truth = json.loads(truth_path_for(out).read_text(encoding="utf-8"))
+    minutes = truth["minutes"]
+    assert truth["source_file"] == out.name
+    assert len(minutes["minute_index"]) == 15  # 0.25 h
+    assert len(minutes["resp_rate_bpm"]) == len(minutes["amplitude_rel"]) == 15
+    assert set(minutes["quality"]) <= {"good", "poor", "no_signal"}
+
+
+def test_truth_rr_matches_the_breath_schedule() -> None:
+    no_pauses = replace(PROFILES["stable"], pauses_per_hour=0)
+    night = simulate_night(no_pauses, 1800, np.random.default_rng(6))
+    rr = np.array(compute_ground_truth(night, 1800)["resp_rate_bpm"])
+    breaths = night.schedule.duration_s[night.schedule.is_breath]
+    # Total breaths over 30 minutes must equal the sum of the per-minute rates.
+    assert abs(rr.sum() - np.count_nonzero(breaths.cumsum() <= 1800)) < 1.0
+
+
+def test_pause_lowers_that_minutes_rr() -> None:
+    profile = replace(PROFILES["stable"], pauses_per_hour=30)
+    night = simulate_night(profile, 1800, np.random.default_rng(7))
+    rr = compute_ground_truth(night, 1800)["resp_rate_bpm"]
+    # A long pause that sits entirely inside one minute.
+    long_pause = next(
+        e
+        for e in night.events
+        if e.kind == "pause"
+        and e.end_ms - e.start_ms > 12_000
+        and e.start_ms // 60_000 == (e.end_ms - 1) // 60_000
+    )
+    assert rr[long_pause.start_ms // 60_000] < np.median(rr)
+
+
+def test_quality_labels_follow_events() -> None:
+    events = [
+        Event("no_signal", 60_000, 180_000),  # covers minutes 1 and 2 completely
+        Event("artifact_spike", 200_000, 200_100),  # minute 3
+        Event("pause", 250_000, 260_000),  # minute 4: physiology, not a quality problem
+    ]
+    assert minute_quality(events, 5) == ["good", "no_signal", "no_signal", "poor", "good"]

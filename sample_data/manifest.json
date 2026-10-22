@@ -1,0 +1,154 @@
+{
+  "description": "Synthetic Night Night sample set. Regenerate with `python tools/generate_sample_set.py`.",
+  "patients": [
+    {
+      "study_code": "NN-001",
+      "device_id": "NN-DEV-01",
+      "profile": "stable"
+    },
+    {
+      "study_code": "NN-002",
+      "device_id": "NN-DEV-02",
+      "profile": "declining"
+    },
+    {
+      "study_code": "NN-003",
+      "device_id": "NN-DEV-03",
+      "profile": "noisy"
+    }
+  ],
+  "recordings": [
+    {
+      "recording_id": "NN-001_2026-09-14",
+      "study_code": "NN-001",
+      "device_id": "NN-DEV-01",
+      "profile": "stable",
+      "seed": 100,
+      "start_utc": "2026-09-14T02:22:00Z",
+      "duration_hours": 7.75,
+      "csv": "NN-001/NN-001_2026-09-14.csv",
+      "truth": "NN-001/NN-001_2026-09-14.truth.json"
+    },
+    {
+      "recording_id": "NN-001_2026-09-21",
+      "study_code": "NN-001",
+      "device_id": "NN-DEV-01",
+      "profile": "stable",
+      "seed": 101,
+      "start_utc": "2026-09-21T02:45:00Z",
+      "duration_hours": 9.0,
+      "csv": "NN-001/NN-001_2026-09-21.csv",
+      "truth": "NN-001/NN-001_2026-09-21.truth.json"
+    },
+    {
+      "recording_id": "NN-001_2026-09-28",
+      "study_code": "NN-001",
+      "device_id": "NN-DEV-01",
+      "profile": "stable",
+      "seed": 102,
+      "start_utc": "2026-09-28T01:52:00Z",
+      "duration_hours": 8.0,
+      "csv": "NN-001/NN-001_2026-09-28.csv",
+      "truth": "NN-001/NN-001_2026-09-28.truth.json"
+    },
+    {
+      "recording_id": "NN-001_2026-10-05",
+      "study_code": "NN-001",
+      "device_id": "NN-DEV-01",
+      "profile": "stable",
+      "seed": 103,
+      "start_utc": "2026-10-05T02:15:00Z",
+      "duration_hours": 7.0,
+      "csv": "NN-001/NN-001_2026-10-05.csv",
+      "truth": "NN-001/NN-001_2026-10-05.truth.json"
+    },
+    {
+      "recording_id": "NN-002_2026-09-15",
+      "study_code": "NN-002",
+      "device_id": "NN-DEV-02",
+      "profile": "declining",
+      "seed": 200,
+      "start_utc": "2026-09-15T02:59:00Z",
+      "duration_hours": 8.5,
+      "csv": "NN-002/NN-002_2026-09-15.csv",
+      "truth": "NN-002/NN-002_2026-09-15.truth.json"
+    },
+    {
+      "recording_id": "NN-002_2026-09-20",
+      "study_code": "NN-002",
+      "device_id": "NN-DEV-02",
+      "profile": "declining",
+      "seed": 201,
+      "start_utc": "2026-09-20T02:06:00Z",
+      "duration_hours": 7.5,
+      "csv": "NN-002/NN-002_2026-09-20.csv",
+      "truth": "NN-002/NN-002_2026-09-20.truth.json"
+    },
+    {
+      "recording_id": "NN-002_2026-09-25",
+      "study_code": "NN-002",
+      "device_id": "NN-DEV-02",
+      "profile": "declining",
+      "seed": 202,
+      "start_utc": "2026-09-25T02:29:00Z",
+      "duration_hours": 8.75,
+      "csv": "NN-002/NN-002_2026-09-25.csv",
+      "truth": "NN-002/NN-002_2026-09-25.truth.json"
+    },
+    {
+      "recording_id": "NN-002_2026-09-30",
+      "study_code": "NN-002",
+      "device_id": "NN-DEV-02",
+      "profile": "declining",
+      "seed": 203,
+      "start_utc": "2026-09-30T02:52:00Z",
+      "duration_hours": 7.75,
+      "csv": "NN-002/NN-002_2026-09-30.csv",
+      "truth": "NN-002/NN-002_2026-09-30.truth.json"
+    },
+    {
+      "recording_id": "NN-003_2026-09-16",
+      "study_code": "NN-003",
+      "device_id": "NN-DEV-03",
+      "profile": "noisy",
+      "seed": 300,
+      "start_utc": "2026-09-16T02:20:00Z",
+      "duration_hours": 7.0,
+      "csv": "NN-003/NN-003_2026-09-16.csv",
+      "truth": "NN-003/NN-003_2026-09-16.truth.json"
+    },
+    {
+      "recording_id": "NN-003_2026-09-22",
+      "study_code": "NN-003",
+      "device_id": "NN-DEV-03",
+      "profile": "noisy",
+      "seed": 301,
+      "start_utc": "2026-09-22T02:43:00Z",
+      "duration_hours": 8.25,
+      "csv": "NN-003/NN-003_2026-09-22.csv",
+      "truth": "NN-003/NN-003_2026-09-22.truth.json"
+    },
+    {
+      "recording_id": "NN-003_2026-09-28",
+      "study_code": "NN-003",
+      "device_id": "NN-DEV-03",
+      "profile": "noisy",
+      "seed": 302,
+      "start_utc": "2026-09-28T01:50:00Z",
+      "duration_hours": 7.25,
+      "csv": "NN-003/NN-003_2026-09-28.csv",
+      "truth": "NN-003/NN-003_2026-09-28.truth.json"
+    },
+    {
+      "recording_id": "NN-003_2026-10-04",
+      "study_code": "NN-003",
+      "device_id": "NN-DEV-03",
+      "profile": "noisy",
+      "seed": 303,
+      "start_utc": "2026-10-04T02:13:00Z",
+      "duration_hours": 8.5,
+      "csv": "NN-003/NN-003_2026-10-04.csv",
+      "truth": "NN-003/NN-003_2026-10-04.truth.json"
+    }
+  ]
+}

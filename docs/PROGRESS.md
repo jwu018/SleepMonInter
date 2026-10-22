@@ -65,3 +65,64 @@ Newest entries at the bottom. One entry per checkpoint: what was done, decisions
 **Deferred**
 - Ground-truth file (Step 2). The `BreathSchedule` and `events` are already kept in memory for it.
 - Even after the reduction, the whole-night view still shows a gentle periodic ripple from the wander (a sum of 3 sines). Acceptable for now; could switch to filtered noise if it looks too regular.
+
+## 2026-10-22 — Phase 1, Step 2: Ground-truth file
+
+**Done**
+- The generator now writes `<name>.truth.json` next to each CSV: per-minute `resp_rate_bpm`, `amplitude_rel` and `quality` (columnar arrays), plus every injected event with `start_ms`/`end_ms`.
+- `plot_recording.py` shades the events from the truth file (pause, shallow, no_signal, burst) when one is present.
+- 4 new tests (11 total): the truth file is written, the per-minute RR sums to the breath count, a pause lowers that minute's RR, and quality labels follow events.
+
+**Decisions**
+- **True RR** = change in a continuous "breaths so far" count across each minute (fractional), so partial breaths and pauses are exact rather than rounded to whole breaths.
+- **True amplitude** = mean depth of breaths starting in the minute ÷ the night's median depth (the same definition processing will use). Because it's relative to each night, nights all average about 1.0. Night-to-night depth changes can't show in this metric by design.
+- **Quality**: `no_signal` if ≥ 50% of the minute is a loose band or data gap; `poor` if any artifact, gap or loose band touches it; otherwise `good`. Pauses and shallow breathing are physiology, so they don't lower quality.
+- Truth values describe the actual breathing, even during no_signal stretches. The dashboard data builder blanks RR and amplitude for no_signal minutes, to mimic what processing would output.
+
+## 2026-10-22 — Phase 1, Step 3: Sample set
+
+**Done**
+- `tools/generate_sample_set.py`: 3 patients × 4 nights. NN-001 is stable (NN-DEV-01), NN-002 is declining (NN-DEV-02), NN-003 is noisy (NN-DEV-03). Nights run September to October 2026, start between 21:45 and 23:00 US Eastern, and last 7–9 h. Fixed seeds (`patient*100 + night`) make it reproducible; it takes about 16 s.
+- `sample_data/manifest.json` maps each file to a patient and device (the file itself only knows its device).
+- The declining patient worsens night by night: median RR goes 19.4 → 21.0 → 21.6 → 23.3 bpm, with more pauses and a steeper in-night amplitude drop.
+- `sample_data/example/example_10min.csv` (166 KB) is a short committed example.
+
+**Decisions**
+- The full set is 103 MB, so **raw full-night CSVs are gitignored** (`/sample_data/**/*.csv`, except `example/`). The truth JSONs (about 30 KB each), the manifest, and the example are committed. The web app's JSON gets committed in Phase 2, so the Vercel build never needs the raw CSVs.
+- **Phases 2 steps reordered** (user is short on time): data module, then all UI pages, then Supabase auth, then Vercel. The data module has a single session-check hook so auth plugs in later. Nothing is deployed before auth exists.
+
+**Deferred**
+- No unit test for `generate_sample_set.py` itself; it's covered indirectly by the generator tests.
+
+## 2026-10-22 — Phase 2, Step 1: Static data and data-access module
+
+**Done**
+- `tools/build_static_data.py`: turns the sample set into `web/data/index.json` (patients and per-night summaries), `web/data/recordings/<id>.json` (metadata, summary, per-minute metrics), and `web/data/waveforms/<id>.i16` (signal at 10 Hz as int16 offsets; -32768 = gap). Total 6.8 MB, committed. 2 new tests (13 total in tools).
+- `web/src/lib/data/` (types plus a server-only data module): `listPatients`, `getPatient`, `getRecording`, `getWaveform` (min/max envelope downsampling). Every function calls `requireUser()` first and validates IDs with a regex before building a file path (prevents path traversal).
+- `web/src/lib/auth.ts`: **placeholder** `requireUser()` that returns a dev user locally and **throws on Vercel** (`VERCEL` env var), so nothing can be deployed without real auth.
+- `GET /api/recordings/[id]/waveform?start_ms&end_ms&max_points` route handler (400 on bad params, 404 on unknown id).
+- `next.config.ts`: `outputFileTracingIncludes` so `web/data/**` ships with the Vercel functions.
+- uPlot 1.6.32 installed (pre-approved).
+
+## 2026-10-22 — Phase 2, Steps 4–7 (built before auth): Dashboard pages
+
+**Done**
+- `/`: patient list. `/patients/[studyCode]`: nights table plus an SVG sparkline of median RR per night. `/patients/[studyCode]/compare`: overlay of 2–3 nights by elapsed time, RR or amplitude, optional 5-min average.
+- `/recordings/[recordingId]`: stat tiles, RR and amplitude trend charts (uPlot, synced cursor, poor/no-signal shading via a `drawClear` plugin), the waveform panel (Full night / 1 h / 5 min / 30 s presets, earlier/later, position slider; clicking a trend chart jumps to a 5-min window), and the battery panel (end-of-recording voltage, linear life estimate to a 3.4 V cutoff).
+- `/recordings/[recordingId]/report`: print layout (`print:hidden` controls, letter page, light colors forced on paper).
+- `/upload`: disabled shell with a "Coming soon" note.
+- Shared: `UPlotChart` wrapper (rebuilds on light/dark change, ResizeObserver), `LocalTime` (formats in the viewer's time zone via `useSyncExternalStore`), `StatTile`, `Skeleton`, `PrintButton`, `format.ts`.
+- Checked in a real browser (dark mode): all pages render, no console errors. A bad ID gives a 404 page.
+- Checks: `tsc` clean, `eslint` clean, `next build` OK; tools `ruff` clean, `pytest` 13 passed.
+
+**Decisions**
+- Kept `cacheComponents`: every data-reading page is a static shell plus a `<Suspense>` boundary around an async component (the Next 16 pattern for request-time data such as auth cookies).
+- Chart colors follow the dataviz reference palette (validated: all checks pass; the contrast warning on aqua/yellow is covered by the visible legend and readout). Poor/no-signal use reserved status colors with a text legend. RR axis is 5–35 bpm; amplitude is 0–1.6×.
+- Compare colors are fixed per night (by position in the patient's list), so a night keeps its color when the selection changes.
+- Fixed after visual review: legends said "no signal"/"gap" when not hovering (now "—"); 5-min window was enveloped (point budget raised to 3200 so it shows every point).
+- `eslint.config.mjs`: allow `_`-prefixed unused variables.
+
+**Deferred / known issues**
+- `/` is currently prerendered at build time *with data*. Once `requireUser()` reads the session cookie (Supabase step), it becomes request-time; verify that in the build output (it should no longer show `○ /`).
+- Drag-to-select zoom on the waveform (presets only for now). The upload page is a shell.
+- No automated tests for the web code yet.

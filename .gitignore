@@ -32,6 +32,12 @@ next-env.d.ts
 npm-debug.log*
 .vercel/
 
+# --- Synthetic sample set ---
+# Full-night CSVs are ~9 MB each; regenerate them with `python tools/generate_sample_set.py`.
+# The truth files, manifest, and the short example CSV are committed.
+/sample_data/**/*.csv
+!/sample_data/example/*.csv
+
 # --- Local raw-file store (Phase 4) ---
 # Uploaded recordings live here in dev; only the committed sample_data/ set belongs in git.
 file_store/

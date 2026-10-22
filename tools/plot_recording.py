@@ -4,7 +4,8 @@ Three panels:
   1. the whole night (to spot baseline shifts, no-signal stretches and trends);
   2. a zoomed window (to see individual breaths, pauses and spikes);
   3. battery voltage.
-Data gaps (timestamp jumps > 1 s) are shaded red in the top two panels.
+Data gaps (timestamp jumps > 1 s) are shaded red in the top two panels. If a
+`<name>.truth.json` file sits next to the recording, injected events are shaded too.
 
 Usage:
     python plot_recording.py night.csv
@@ -15,13 +16,22 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import Patch
 
 GAP_THRESHOLD_MS = 1000
+# Shading colors for events read from a ground-truth file (data gaps are always red).
+EVENT_COLORS = {
+    "pause": "tab:purple",
+    "shallow": "tab:orange",
+    "no_signal": "tab:gray",
+    "artifact_burst": "tab:green",
+}
 
 
 @dataclass
@@ -91,6 +101,21 @@ def main(argv: list[str] | None = None) -> int:
     ax_zoom.set_xlabel("seconds since start")
     ax_zoom.set_ylabel("raw_value (counts)")
     ax_zoom.set_title(f"Zoom: {args.zoom_minutes:g} min from minute {args.zoom_start_min:g}")
+
+    # If the generator's ground-truth file is next to the recording, mark the injected events.
+    truth_path = args.path.with_name(args.path.stem + ".truth.json")
+    if truth_path.exists():
+        events = json.loads(truth_path.read_text(encoding="utf-8"))["events"]
+        for event in events:
+            color = EVENT_COLORS.get(event["kind"])
+            if color is None:
+                continue
+            start_ms, end_ms = event["start_ms"], max(event["end_ms"], event["start_ms"] + 2000)
+            ax_night.axvspan(start_ms / 3_600_000, end_ms / 3_600_000, color=color, alpha=0.25)
+            if end_ms > zoom_start_ms and start_ms < zoom_end_ms:
+                ax_zoom.axvspan(start_ms / 1000, end_ms / 1000, color=color, alpha=0.2)
+        handles = [Patch(color=c, alpha=0.4, label=k) for k, c in EVENT_COLORS.items()]
+        ax_night.legend(handles=handles, loc="upper left", fontsize=7, ncol=len(handles))
 
     for start_ms, end_ms in gaps:
         ax_night.axvspan(start_ms / 3_600_000, end_ms / 3_600_000, color="red", alpha=0.3)

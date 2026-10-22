@@ -17,6 +17,10 @@ How the signal is built (all in "counts", the raw unit of the RIP front end):
 4. Wander, noise, motion artifacts and "band loose" (no-signal) stretches are added,
    then a few data gaps are cut out of the timestamps.
 
+Next to every recording it also writes `<name>.truth.json`: the true per-minute
+respiratory rate, relative amplitude and quality, plus every injected event. Signal
+processing (Phase 5) is scored against this file.
+
 Usage:
     python generate_synthetic.py --profile stable --seed 1 --out night.csv
     python generate_synthetic.py --help
@@ -25,6 +29,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -389,6 +394,119 @@ def simulate_night(profile: Profile, duration_s: float, rng: np.random.Generator
     )
 
 
+# --- Ground truth ------------------------------------------------------------------------
+
+MINUTE_MS = 60_000
+# Events that make a minute's signal unreliable. Pauses and shallow breathing are real
+# physiology, not signal problems, so they don't affect quality.
+QUALITY_EVENTS = {"artifact_spike", "artifact_burst", "baseline_shift", "no_signal", "data_gap"}
+SIGNAL_LOST_EVENTS = {"no_signal", "data_gap"}
+
+
+def breath_cycles_at(schedule: BreathSchedule, t_s: np.ndarray) -> np.ndarray:
+    """How many breaths have happened by time `t_s`, counting partial breaths (e.g. 41.25).
+
+    The difference between two times is the exact number of breaths between them, so a
+    pause naturally lowers that minute's rate, with no rounding to whole breaths.
+    """
+    breaths_before = np.concatenate([[0], np.cumsum(schedule.is_breath)[:-1]])
+    segment = np.searchsorted(schedule.start_s, t_s, side="right") - 1
+    phase = np.clip((t_s - schedule.start_s[segment]) / schedule.duration_s[segment], 0.0, 1.0)
+    return breaths_before[segment] + np.where(schedule.is_breath[segment], phase, 0.0)
+
+
+def minute_quality(events: list[Event], n_minutes: int) -> list[str]:
+    """Label each minute good / poor / no_signal from the events injected into it.
+
+    - no_signal: at least half the minute has no usable breathing (band loose or data gap)
+    - poor: any artifact, gap or loose band touches the minute
+    - good: otherwise
+    """
+    touched = np.zeros(n_minutes, dtype=bool)
+    lost_fraction = np.zeros(n_minutes)
+    for event in events:
+        if event.kind not in QUALITY_EVENTS:
+            continue
+        first = event.start_ms // MINUTE_MS
+        last = max(event.end_ms - 1, event.start_ms) // MINUTE_MS
+        for minute in range(first, min(last, n_minutes - 1) + 1):
+            touched[minute] = True
+            if event.kind in SIGNAL_LOST_EVENTS:
+                overlap_ms = min(event.end_ms, (minute + 1) * MINUTE_MS) - max(
+                    event.start_ms, minute * MINUTE_MS
+                )
+                lost_fraction[minute] += overlap_ms / MINUTE_MS
+    return [
+        "no_signal" if lost >= 0.5 else "poor" if bad else "good"
+        for lost, bad in zip(lost_fraction, touched, strict=True)
+    ]
+
+
+def compute_ground_truth(night: SyntheticNight, duration_s: float) -> dict[str, object]:
+    """The true per-minute metrics, which signal processing (Phase 5) will try to recover.
+
+    Only whole minutes are included. The values describe the *breathing* itself: during a
+    no_signal stretch the child is still breathing, even though the band can't see it.
+    """
+    schedule = night.schedule
+    n_minutes = int(duration_s // 60)
+
+    edges_s = np.arange(n_minutes + 1) * 60.0
+    resp_rate_bpm = np.diff(breath_cycles_at(schedule, edges_s))
+
+    # Relative amplitude: mean depth of the breaths starting in each minute,
+    # divided by the median depth over the whole night.
+    breath_start_s = schedule.start_s[schedule.is_breath]
+    breath_amp = schedule.amplitude_counts[schedule.is_breath]
+    minute_of_breath = (breath_start_s // 60).astype(np.int64)
+    in_range = minute_of_breath < n_minutes
+    amp_sum = np.bincount(
+        minute_of_breath[in_range], weights=breath_amp[in_range], minlength=n_minutes
+    )
+    breath_count = np.bincount(minute_of_breath[in_range], minlength=n_minutes)
+    night_median = float(np.median(breath_amp))
+    amplitude_rel = np.full(n_minutes, np.nan)
+    has_breaths = breath_count > 0
+    amplitude_rel[has_breaths] = amp_sum[has_breaths] / breath_count[has_breaths] / night_median
+
+    def rounded(values: np.ndarray, digits: int) -> list[float | None]:
+        return [None if np.isnan(v) else round(float(v), digits) for v in values]
+
+    return {
+        "minute_index": list(range(n_minutes)),
+        "resp_rate_bpm": rounded(resp_rate_bpm, 2),
+        "amplitude_rel": rounded(amplitude_rel, 3),
+        "quality": minute_quality(night.events, n_minutes),
+    }
+
+
+def write_ground_truth(
+    night: SyntheticNight,
+    path: Path,
+    *,
+    duration_s: float,
+    source_file: str,
+    start_utc: datetime,
+    profile: str,
+    seed: int,
+) -> None:
+    """Write the ground-truth JSON that sits next to each generated recording."""
+    truth = {
+        "truth_format": 1,
+        "source_file": source_file,
+        "start_utc": format_utc(start_utc),
+        "profile": profile,
+        "seed": seed,
+        "duration_s": duration_s,
+        "minutes": compute_ground_truth(night, duration_s),
+        "events": [
+            {"kind": e.kind, "start_ms": e.start_ms, "end_ms": e.end_ms} for e in night.events
+        ],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(truth, indent=1) + "\n", encoding="utf-8")
+
+
 # --- Output ------------------------------------------------------------------------------
 
 
@@ -438,6 +556,43 @@ def parse_utc(text: str) -> datetime:
     return dt.astimezone(UTC)
 
 
+def truth_path_for(csv_path: Path) -> Path:
+    """night.csv -> night.truth.json"""
+    return csv_path.with_name(csv_path.stem + ".truth.json")
+
+
+def generate_recording(
+    *,
+    profile_name: str,
+    profile: Profile,
+    seed: int,
+    duration_hours: float,
+    start_utc: datetime,
+    device_id: str,
+    out: Path,
+) -> SyntheticNight:
+    """Simulate one night and write both the recording CSV and its ground-truth JSON."""
+    duration_s = duration_hours * 3600
+    night = simulate_night(profile, duration_s, np.random.default_rng(seed))
+    write_recording(
+        night,
+        out,
+        device_id=device_id,
+        start_utc=start_utc,
+        extra_header={"synthetic": "true", "profile": profile_name, "seed": str(seed)},
+    )
+    write_ground_truth(
+        night,
+        truth_path_for(out),
+        duration_s=duration_s,
+        source_file=out.name,
+        start_utc=start_utc,
+        profile=profile_name,
+        seed=seed,
+    )
+    return night
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Generate a synthetic Night Night recording (docs/FILE_FORMAT.md)."
@@ -458,14 +613,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.duration_hours <= 0:
         parser.error("--duration-hours must be positive")
 
-    rng = np.random.default_rng(args.seed)
-    night = simulate_night(PROFILES[args.profile], args.duration_hours * 3600, rng)
-    write_recording(
-        night,
-        args.out,
-        device_id=args.device_id,
+    night = generate_recording(
+        profile_name=args.profile,
+        profile=PROFILES[args.profile],
+        seed=args.seed,
+        duration_hours=args.duration_hours,
         start_utc=args.start_utc,
-        extra_header={"synthetic": "true", "profile": args.profile, "seed": str(args.seed)},
+        device_id=args.device_id,
+        out=args.out,
     )
 
     counts: dict[str, int] = {}
@@ -473,6 +628,7 @@ def main(argv: list[str] | None = None) -> int:
         counts[event.kind] = counts.get(event.kind, 0) + 1
     summary = ", ".join(f"{k}={v}" for k, v in sorted(counts.items())) or "none"
     print(f"Wrote {args.out} ({len(night.timestamp_ms):,} samples). Events: {summary}")
+    print(f"Wrote {truth_path_for(args.out)}")
     return 0
 
 

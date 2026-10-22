@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import { PrototypeBanner } from "@/components/PrototypeBanner";
 import "./globals.css";
 
@@ -31,12 +32,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         <PrototypeBanner />
-        <header className="border-b border-border">
-          <div className="mx-auto flex max-w-6xl items-baseline gap-3 px-4 py-4">
-            <span className="text-lg font-semibold tracking-tight">
-              Night Night
-            </span>
-            <span className="text-sm text-muted">Clinician Dashboard</span>
+        <header className="border-b border-border print:hidden">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-baseline gap-x-6 gap-y-2 px-4 py-4">
+            <Link href="/" className="flex items-baseline gap-3">
+              <span className="text-lg font-semibold tracking-tight">Night Night</span>
+              <span className="text-sm text-muted">Clinician Dashboard</span>
+            </Link>
+            <nav className="flex gap-4 text-sm">
+              <Link href="/" className="hover:underline">
+                Patients
+              </Link>
+              <Link href="/upload" className="hover:underline">
+                Upload
+              </Link>
+            </nav>
           </div>
         </header>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
