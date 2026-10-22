@@ -126,3 +126,30 @@ Newest entries at the bottom. One entry per checkpoint: what was done, decisions
 - `/` is currently prerendered at build time *with data*. Once `requireUser()` reads the session cookie (Supabase step), it becomes request-time; verify that in the build output (it should no longer show `○ /`).
 - Drag-to-select zoom on the waveform (presets only for now). The upload page is a shell.
 - No automated tests for the web code yet.
+
+## 2026-10-22 — Supabase key naming update (before auth step)
+
+**Decisions**
+- Supabase replaced the legacy `anon` / `service_role` keys with **publishable** (`sb_publishable_...`, browser-safe) and **secret** (`sb_secret_...`, server-only) keys; new projects only have the new ones. Env vars renamed to `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY` (`.env.example`, `CLAUDE.md`).
+- Project created with **Data API off**, **auto-expose new tables off**, **auto RLS on**. Auth works independently of the Data API. FastAPI (Phase 3) will connect to Postgres directly.
+
+## 2026-10-22 — Phase 2, Steps 2–3: Supabase Auth (email/password + Google)
+
+**Done**
+- Installed `@supabase/ssr` 0.12.7 and `@supabase/supabase-js` 2.118.0 (pre-approved). Confirmed `@supabase/ssr` uses the new publishable key.
+- `src/lib/supabase/server.ts` and `client.ts`: server and browser Supabase clients (cookie-based sessions).
+- `src/proxy.ts`: refreshes the session on every request (`getClaims()`), applies Supabase's anti-caching headers, redirects logged-out visitors to `/login?next=...`, returns 401 JSON for `/api/*`. Public paths: `/login`, `/signup`, `/auth/*`.
+- `src/lib/auth.ts`: `getCurrentUser()` (verified claims) and `requireUser()` (redirects). The VERCEL placeholder guard is removed now that real auth exists. The waveform route also checks itself and returns 401.
+- `src/lib/auth-actions.ts` (Server Actions: `signIn`, `signUp`, `signOut`), `AuthForm` (useActionState), `/login`, `/signup`, `UserMenu` in the header (email + Sign out, in Suspense).
+- Google: `GoogleButton` (signInWithOAuth, PKCE) and the `/auth/callback` route (exchangeCodeForSession). Needs the Google provider enabled in Supabase to work.
+- `src/lib/safe-next.ts`: post-login redirects are limited to same-site paths (open-redirect protection).
+- Verified logged out: every page 307 → `/login?next=…`, API → 401, login page contains no patient data, `/` no longer prerendered with data (`◐`), callback without a code → `/login?error=oauth`, `next=//evil.example` is ignored.
+- Checks: tsc clean, eslint clean, build OK.
+
+**Decisions**
+- Two layers: proxy = optimistic redirect + session refresh; `requireUser()` in the data layer = the real check (per Next.js guidance that proxy shouldn't be the only authorization).
+- Sign-in errors use one generic message (doesn't reveal which emails have accounts). Sign-up requires 8+ characters.
+- Claude can't create accounts on external identity providers, so **the logged-in flows were not tested by Claude**. The user tests sign-up/sign-in and Google.
+
+**Deferred**
+- Password reset (needs email sending; out of scope). Email allowlist for sign-up (open question).

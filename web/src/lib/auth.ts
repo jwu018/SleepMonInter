@@ -1,22 +1,33 @@
 import "server-only";
 
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
 export interface User {
   id: string;
   email: string;
 }
 
 /**
- * Returns the logged-in user, or sends the visitor to /login.
+ * The logged-in user, or null.
  *
- * TEMPORARY PLACEHOLDER: real Supabase Auth replaces this body in the next step.
- * Every data function already calls it, so swapping it in protects all data at once.
- *
- * Until then it refuses to run on Vercel (VERCEL=1 is set there automatically), so an
- * accidental deploy can't serve data without a login.
+ * getClaims() verifies the session token's signature (it doesn't just trust the cookie),
+ * which is what Supabase recommends for authorization decisions on the server.
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) return null;
+  return { id: data.claims.sub, email: String(data.claims.email ?? "") };
+}
+
+/**
+ * The logged-in user, or a redirect to /login.
+ * Every function in the data layer calls this first, so no data is ever read for a
+ * visitor without a valid session, even if proxy.ts were misconfigured.
  */
 export async function requireUser(): Promise<User> {
-  if (process.env.VERCEL) {
-    throw new Error("Authentication is not configured yet; refusing to serve data.");
-  }
-  return { id: "local-dev", email: "dev@localhost" };
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  return user;
 }

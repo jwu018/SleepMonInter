@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { Suspense } from "react";
+import { UserMenu } from "@/components/UserMenu";
 import { PrototypeBanner } from "@/components/PrototypeBanner";
 import "./globals.css";
 
@@ -46,6 +48,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 Upload
               </Link>
             </nav>
+            <div className="ml-auto">
+              <Suspense fallback={null}>
+                <UserMenu />
+              </Suspense>
+            </div>
           </div>
         </header>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">

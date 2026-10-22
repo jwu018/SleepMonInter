@@ -1,3 +1,4 @@
+import { getCurrentUser } from "@/lib/auth";
 import { getWaveform } from "@/lib/data";
 
 // GET /api/recordings/<id>/waveform?start_ms=&end_ms=&max_points=
@@ -11,6 +12,11 @@ export async function GET(
   request: Request,
   ctx: RouteContext<"/api/recordings/[id]/waveform">,
 ) {
+  // An API caller expects a status code, not a redirect to the login page.
+  if (!(await getCurrentUser())) {
+    return Response.json({ error: "not signed in" }, { status: 401 });
+  }
+
   const { id } = await ctx.params;
   const params = new URL(request.url).searchParams;
   const startMs = Number(params.get("start_ms") ?? 0);
