@@ -1,6 +1,7 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 export interface User {
@@ -15,6 +16,10 @@ export interface User {
  * which is what Supabase recommends for authorization decisions on the server.
  */
 export async function getCurrentUser(): Promise<User | null> {
+  // getClaims() checks the token's expiry against the current time (Date.now()).
+  // Next.js 16 refuses to pre-build anything that depends on the current time, so
+  // connection() marks this as request-time work. Callers already sit inside <Suspense>.
+  await connection();
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data?.claims) return null;

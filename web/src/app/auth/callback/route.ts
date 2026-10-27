@@ -17,6 +17,11 @@ export async function GET(request: Request) {
     if (!error) {
       return NextResponse.redirect(new URL(next, url.origin));
     }
+    // Server-side log only (shows in the `npm run dev` terminal / Vercel logs), so a failed
+    // Google login says why instead of failing silently.
+    console.error("Google sign-in: code exchange failed:", error.message);
+  } else {
+    console.error("Google sign-in: callback reached without a code");
   }
   return NextResponse.redirect(new URL("/login?error=oauth", url.origin));
 }

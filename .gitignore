@@ -37,6 +37,7 @@ npm-debug.log*
 # The truth files, manifest, and the short example CSV are committed.
 /sample_data/**/*.csv
 !/sample_data/example/*.csv
+/irl_sample_data/*.csv
 
 # --- Local raw-file store (Phase 4) ---
 # Uploaded recordings live here in dev; only the committed sample_data/ set belongs in git.

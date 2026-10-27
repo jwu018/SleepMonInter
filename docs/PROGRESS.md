@@ -153,3 +153,16 @@ Newest entries at the bottom. One entry per checkpoint: what was done, decisions
 
 **Deferred**
 - Password reset (needs email sending; out of scope). Email allowlist for sign-up (open question).
+
+## 2026-10-22 — Fix: "Invalid API key" on sign-up
+
+- Cause: `web/.env.local` held two publishable keys pasted back to back (`sb_publishable_` appeared twice). Supabase rejected the combined value with 401. Tested each half against `/auth/v1/settings` (read-only, no account created): only the second key (46 chars) was valid. Rewrote `.env.local` with just that key.
+- Confirmed Supabase auth settings: email on, Google on, email confirmation off, sign-ups allowed.
+- `/auth/callback` now logs why a Google code exchange failed (server-side only), instead of failing silently.
+- Lesson: when a `NEXT_PUBLIC_*` value changes, restart `npm run dev`. Next.js builds these into the browser code at startup.
+
+## 2026-10-22 — Fix: "unstable value Date.now() while prerendering" after login
+
+- Google sign-in confirmed working by the user.
+- Cause: Supabase's `getClaims()` compares the token's expiry with `Date.now()`. With `cacheComponents` and partial prefetching, Next.js 16 refuses to prerender anything that reads the current time, even inside `<Suspense>`, unless it's marked request-time.
+- Fix: `await connection()` (from `next/server`) at the top of `getCurrentUser()` in `src/lib/auth.ts`, per the bundled docs ("Random values and timestamps"). Every auth check goes through this function, so one change covers all pages. tsc, eslint and build are clean. Logged-in dev check is done by the user (Claude can't sign in).
