@@ -166,3 +166,39 @@ Newest entries at the bottom. One entry per checkpoint: what was done, decisions
 - Google sign-in confirmed working by the user.
 - Cause: Supabase's `getClaims()` compares the token's expiry with `Date.now()`. With `cacheComponents` and partial prefetching, Next.js 16 refuses to prerender anything that reads the current time, even inside `<Suspense>`, unless it's marked request-time.
 - Fix: `await connection()` (from `next/server`) at the top of `getCurrentUser()` in `src/lib/auth.ts`, per the bundled docs ("Random values and timestamps"). Every auth check goes through this function, so one change covers all pages. tsc, eslint and build are clean. Logged-in dev check is done by the user (Claude can't sign in).
+
+## 2026-10-27 — Upload page: reading real microSD recordings (in the browser)
+
+**Done**
+- `docs/DEVICE_FORMAT.md`: the real firmware 0.1/0.2 CSV format (from the firmware team's notes, checked against 5 bench files), including a table of differences from the synthetic format and open questions for the firmware team.
+- `web/src/lib/device/parseDeviceCsv.ts`: streaming parser (feed chunks, `finish()`) producing metadata, typed-array columns, drift checks, the stop line, and integrity stats (missed samples from `sample` jumps, late samples > 50 ms, flagged rows, malformed lines). Also `isRecordingFile()` (only `S*.csv`; skips `._*` and system folders) and `describeIssues()` (badge + plain-language notes).
+- `web/src/lib/device/trace.ts`: min/max downsampling for drawing, device-clock time arithmetic, elapsed-time formatting.
+- `parse.worker.ts` + `readRecording.ts`: Web Worker that SHA-256 fingerprints the file (duplicate detection) and parses it in 1 MB chunks with progress, transferring the arrays back without copying.
+- `collectFiles.ts`: folder picker (`webkitdirectory`), file picker, and drag-and-drop of folders (recursive).
+- `/upload` page: drop zone, recordings table (start, duration, rows, sensor yes/no, missed samples, status badge, optional study-code tag), ignored-files list, Clear all; detail view with stat tiles, issue notes, signal trace (inductance / frequency / a0 debug; zoom presets; elapsed vs device-clock axis), and a file-details table.
+- Tests: `npm test` (Node built-in runner, no new dependency), 12 passing, including a local-only test over the 5 bench files.
+- Config: `web/package.json` `"type": "module"` + `test` script; `tsconfig.json` `allowImportingTsExtensions` (lets the test file import `.ts` paths under Node).
+- Checks: tsc clean, eslint clean, build OK; the worker is bundled as its own chunk.
+
+**Decisions**
+- **Browser-only, memory-only** (user's choice): uploads live in React state for the tab's lifetime. No server storage, no IndexedDB. Reloading also clears them.
+- No Papa Parse (not pre-approved); the format is simple enough for a small hand-written parser.
+- No breathing analysis on uploads (Phase 5 is co-written by the user). The view shows raw signal and integrity only.
+- Device times are shown as written (device local time, no zone), not converted.
+
+**Not tested by Claude**
+- The upload UI in a browser (the page needs login, which Claude can't do). The parser and helpers are covered by unit tests; the user checks the UI.
+
+**Deferred / for the firmware team**
+- No device ID or battery voltage in device files (the battery panel and patient linking need them); `start_local` has no UTC offset.
+- The sample file with real sensor data (`S20261026_212356.csv`) hasn't arrived yet.
+
+## 2026-10-27 — Scope update and handoff document
+
+**Decisions**
+- Added **Phase 2b** to the plan: (1) compare nights aligned by **clock time** as well as time since start; (2) **clinician annotations**: markers for a moment or a stretch on the night view charts, with a note, category and author, shown on all charts, in a jump-to list, and in the print report. Automatic event detection stays with Phase 5 processing (open question for the client).
+- Device format: the firmware teammate left out the battery column and device ID by accident and will add them. The format is still being finalized (`docs/DEVICE_FORMAT.md` updated).
+
+**Done**
+- `docs/HANDOFF.md`: a self-contained handoff for teammates and new Claude chats (status, routes and files, architecture, setup, decisions, gotchas, deploy steps, next steps). It contains no private details; it points to the private PRD for the full roadmap.
+- Annotation decisions: saved in the **browser (localStorage)** for the showcase, behind the data module, and moved to the database in Phase 3. The **author is the signed-in user's email**, automatically.

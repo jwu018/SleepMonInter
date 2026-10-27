@@ -23,6 +23,8 @@
   --chart-series-4: #eda100;
   --status-warning: #fab219; /* poor-quality minutes */
   --status-neutral: #898781; /* no-signal minutes */
+  --status-good: #0ca30c;
+  --status-serious: #ec835a;
 }
 
 /* Follows the operating system's light/dark setting. */
@@ -58,6 +60,8 @@
   --color-accent: var(--accent);
   --color-status-warning: var(--status-warning);
   --color-status-neutral: var(--status-neutral);
+  --color-status-good: var(--status-good);
+  --color-status-serious: var(--status-serious);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
