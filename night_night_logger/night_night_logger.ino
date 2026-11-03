@@ -16,10 +16,13 @@
     * If the card errors (bumped/removed) it keeps retrying and resumes in a new file.
 
   Controls
-    BOOT button (GP7): stop logging (closes file safely) / start a new session.
+    LOGGING SWITCH (pin A1): ON = start a new file and log, OFF = close the file safely.
+      Wiring: middle prong -> A1, one outer prong -> GND, other outer prong unused.
+      The switch is checked at power-up too, so leaving it ON logs as soon as the board boots.
     LED (GP13): short blink every 2 s = logging | solid = stopped | fast blink = SD problem |
                 double blink = RTC problem
-    Serial (115200, Newline):  s = stop/start   i = status   v = echo every row on/off
+    Serial (115200, Newline):  s = stop/start (bench override; the switch wins on its next flip)
+                               i = status   v = echo every row on/off
                                h = heartbeat line on/off (on by default)
                                m <note> = write a timestamped marker into the file,
                                           e.g. "m B 12 per min" -> "# mark,<time>,elapsed_ms=..,B 12 per min"
@@ -39,14 +42,17 @@
 #include "ldc_lite.h"
 
 // ======================= settings =======================
-#define FW_VERSION        "0.3"
+#define FW_VERSION        "0.4"
 #define SAMPLE_HZ         25          // rows per second (breathing is < 1 Hz; 25 Hz is plenty)
-#define LDC_CHANNEL       0           // 0 = onboard coil (bench test), 1 = external coil / RIP belt
+#define LDC_CHANNEL       1           // 0 = onboard coil (bench test), 1 = external coil / RIP belt
 #define LDC_TANK_PF       100.0       // total capacitance across the coil (100 pF onboard)
 #define LDC_DRIVE         20          // 0-31; tune with 03_ldc1612_test
 #define FLUSH_MS          1000
 #define DRIFT_CHECK_MS    600000UL    // 10 minutes
 #define STANDIN_PIN       A0
+#define SWITCH_PIN        A1          // logging switch: middle prong here, outer prong to GND
+#define SWITCH_ON_LEVEL   LOW         // with INPUT_PULLUP, "connected to GND" reads LOW = ON
+#define SWITCH_DEBOUNCE_MS 50         // switch must hold a new position this long to count
 // ========================================================
 
 RTC_DS3231 rtc;
@@ -55,6 +61,7 @@ File logFile;
 
 bool rtcOk = false, sdOk = false, ldcOk = false;
 bool logging = false, echoRows = false;
+bool switchOn = false;                       // debounced switch state
 char fileName[40] = "";
 
 // time base: anchor (RTC second boundary) + millis()
@@ -235,8 +242,9 @@ void updateLed() {
 void printStatus() {
   char t[32], msg[200];
   fmtTime(nowMs(), t, sizeof t);
-  snprintf(msg, sizeof msg, "time %s | RTC %s | SD %s | LDC %s | %s %s rows=%lu missed=%lu",
+  snprintf(msg, sizeof msg, "time %s | RTC %s | SD %s | LDC %s | switch %s | %s %s rows=%lu missed=%lu",
            t, rtcOk ? "ok" : "MISSING", sdOk ? "ok" : "ERROR", ldcOk ? "ok" : "not found",
+           switchOn ? "ON" : "OFF",
            logging ? "LOGGING" : "stopped", fileName,
            (unsigned long)rowsWritten, (unsigned long)missedSlots);
   Serial.println(msg);
@@ -333,19 +341,30 @@ void handleSerial() {
   } else Serial.println(F("s=stop/start  i=status  v=echo rows  h=heartbeat on/off  m <note>=marker  SET YYYY-MM-DD HH:MM:SS"));
 }
 
-void handleButton() {
-  static bool last = HIGH; static uint32_t lastChange = 0;
-  bool b = digitalRead(PIN_BUTTON);
-  if (b != last && millis() - lastChange > 50) {
-    lastChange = millis(); last = b;
-    if (b == LOW) { if (logging) closeSession("button"); else openSession(); }
+bool readSwitchRaw() { return digitalRead(SWITCH_PIN) == SWITCH_ON_LEVEL; }
+
+// Debounced: a new position must stay steady for SWITCH_DEBOUNCE_MS before we act on it.
+void handleSwitch() {
+  static bool lastRaw = false;
+  static uint32_t rawSince = 0;
+  bool raw = readSwitchRaw();
+  if (raw != lastRaw) { lastRaw = raw; rawSince = millis(); return; }
+  if (raw == switchOn || millis() - rawSince < SWITCH_DEBOUNCE_MS) return;
+
+  switchOn = raw;
+  if (switchOn) {
+    Serial.println(F("Switch ON -> starting a new log file"));
+    if (!logging) openSession();          // if the SD fails, loop() keeps retrying while ON
+  } else {
+    Serial.println(F("Switch OFF -> closing the log file"));
+    if (logging) closeSession("switch");
   }
 }
 
 // ---------------- main ----------------
 void setup() {
   pinMode(PIN_LED, OUTPUT);
-  pinMode(PIN_BUTTON, INPUT_PULLUP);
+  pinMode(SWITCH_PIN, INPUT_PULLUP);
   analogReadResolution(12);
   Serial.begin(115200);
   uint32_t t0 = millis();
@@ -362,20 +381,22 @@ void setup() {
   delay(60);   // first conversion
 
   mountSd();
+  switchOn = readSwitchRaw();             // honour the switch position at power-up
   printStatus();
-  openSession();
+  if (switchOn) openSession();
+  else Serial.println(F("Switch is OFF - flip it ON to start logging."));
 }
 
 void loop() {
   handleSerial();
-  handleButton();
+  handleSwitch();
   updateLed();
   heartbeatTick();
 
   if (!logging) {
-    // If we stopped because of an SD fault, keep trying to recover every 5 s
+    // If the switch is ON but the SD failed, keep trying to recover every 5 s
     static uint32_t lastRetry = 0;
-    if (!sdOk && millis() - lastRetry > 5000) {
+    if (switchOn && !sdOk && millis() - lastRetry > 5000) {
       lastRetry = millis();
       if (logFile) logFile.close();
       SD.end(false);
