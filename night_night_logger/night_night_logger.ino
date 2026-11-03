@@ -18,7 +18,8 @@
   Controls
     LOGGING SWITCH (pin A1): ON = start a new file and log, OFF = close the file safely.
       Wiring: middle prong -> A1, one outer prong -> GND, other outer prong unused.
-      The switch is checked at power-up too, so leaving it ON logs as soon as the board boots.
+      Checked at power-up too, so leaving it ON logs as soon as the board boots.
+      The switch does not cut power: unplug the battery when the device is stored.
     LED (GP13): short blink every 2 s = logging | solid = stopped | fast blink = SD problem |
                 double blink = RTC problem
     Serial (115200, Newline):  s = stop/start (bench override; the switch wins on its next flip)
