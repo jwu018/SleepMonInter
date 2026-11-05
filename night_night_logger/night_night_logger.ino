@@ -20,6 +20,9 @@
       Wiring: middle prong -> A1, one outer prong -> GND, other outer prong unused.
       Checked at power-up too, so leaving it ON logs as soon as the board boots.
       The switch does not cut power: unplug the battery when the device is stored.
+    BATTERY (pin A3): two 100k resistors in series from BAT to GND, midpoint -> A3.
+      Logged as vbat_v (measured) and battery_pct (estimate from a LiPo voltage curve).
+      While USB is plugged in, BAT shows the charger's voltage, so the values are not meaningful.
     LED (GP13): short blink every 2 s = logging | solid = stopped | fast blink = SD problem |
                 double blink = RTC problem
     Serial (115200, Newline):  s = stop/start (bench override; the switch wins on its next flip)
@@ -43,7 +46,7 @@
 #include "ldc_lite.h"
 
 // ======================= settings =======================
-#define FW_VERSION        "0.4"
+#define FW_VERSION        "0.5"
 #define SAMPLE_HZ         25          // rows per second (breathing is < 1 Hz; 25 Hz is plenty)
 #define LDC_CHANNEL       1           // 0 = onboard coil (bench test), 1 = external coil / RIP belt
 #define LDC_TANK_PF       100.0       // total capacitance across the coil (100 pF onboard)
@@ -51,6 +54,9 @@
 #define FLUSH_MS          1000
 #define DRIFT_CHECK_MS    600000UL    // 10 minutes
 #define STANDIN_PIN       A0
+#define VBAT_PIN          A3          // midpoint of the 100k/100k divider on BAT
+#define VBAT_CAL          1.000       // multimeter BAT reading / logged vbat_v (tune once)
+#define VBAT_UPDATE_MS    10000       // battery changes slowly: re-measure every 10 s
 #define SWITCH_PIN        A1          // logging switch: middle prong here, outer prong to GND
 #define SWITCH_ON_LEVEL   LOW         // with INPUT_PULLUP, "connected to GND" reads LOW = ON
 #define SWITCH_DEBOUNCE_MS 50         // switch must hold a new position this long to count
@@ -63,6 +69,7 @@ File logFile;
 bool rtcOk = false, sdOk = false, ldcOk = false;
 bool logging = false, echoRows = false;
 bool switchOn = false;                       // debounced switch state
+float vbat = 0; int vbatPct = -1; uint32_t lastVbat = 0;   // latest battery reading
 char fileName[40] = "";
 
 // time base: anchor (RTC second boundary) + millis()
@@ -149,7 +156,7 @@ bool openSession() {
   else
     snprintf(line, sizeof line, "# ldc1612,NOT FOUND (sensor columns blank)");
   writeLine(line);
-  writeLine("datetime,elapsed_ms,sample,ldc_raw,ldc_freq_hz,ldc_L_uH,ldc_flags,a0_raw");
+  writeLine("datetime,elapsed_ms,sample,ldc_raw,ldc_freq_hz,ldc_L_uH,ldc_flags,a0_raw,vbat_v,battery_pct");
   logFile.flush();
 
   sessionStartMillis = millis();
@@ -181,9 +188,35 @@ void closeSession(const char *why) {
   Serial.println(msg);
 }
 
+// ---------------- battery ----------------
+// Approximate LiPo charge vs. resting voltage, 0% to 100% in 5% steps.
+const float LIPO_CURVE[21] = {3.27, 3.61, 3.69, 3.71, 3.73, 3.75, 3.77, 3.79, 3.80, 3.82, 3.84,
+                              3.85, 3.87, 3.91, 3.95, 3.98, 4.02, 4.08, 4.11, 4.15, 4.20};
+
+int lipoPercent(float v) {
+  if (v <= LIPO_CURVE[0]) return 0;
+  if (v >= LIPO_CURVE[20]) return 100;
+  for (int i = 1; i < 21; i++) {
+    if (v < LIPO_CURVE[i]) {
+      float f = (v - LIPO_CURVE[i - 1]) / (LIPO_CURVE[i] - LIPO_CURVE[i - 1]);
+      return (int)lroundf((i - 1) * 5 + f * 5);
+    }
+  }
+  return 100;
+}
+
+// Average 16 ADC readings to smooth noise. ADC is 12-bit (0-4095), divider halves BAT.
+void updateBattery() {
+  uint32_t sum = 0;
+  for (int i = 0; i < 16; i++) sum += analogRead(VBAT_PIN);
+  vbat = (sum / 16.0f) / 4095.0f * 3.3f * 2.0f * VBAT_CAL;
+  vbatPct = lipoPercent(vbat);
+  lastVbat = millis();
+}
+
 // ---------------- sampling ----------------
 void takeSample() {
-  char t[32], line[160], sens[80] = ",,,";
+  char t[32], line[200], sens[80] = ",,,";
   uint64_t ms = nowMs();
   fmtTime(ms, t, sizeof t);
   if (ldcOk) {
@@ -201,8 +234,9 @@ void takeSample() {
     }
   }
   int a0 = analogRead(STANDIN_PIN);
-  snprintf(line, sizeof line, "%s,%lu,%lu,%s,%d", t,
-           (unsigned long)(millis() - sessionStartMillis), (unsigned long)sampleIdx, sens, a0);
+  snprintf(line, sizeof line, "%s,%lu,%lu,%s,%d,%.3f,%d", t,
+           (unsigned long)(millis() - sessionStartMillis), (unsigned long)sampleIdx, sens, a0,
+           (double)vbat, vbatPct);
   if (writeLine(line)) rowsWritten++;
   if (echoRows) Serial.println(line);
 }
@@ -275,6 +309,9 @@ void heartbeatTick() {
     strncat(warn, " WARN:RTC missing", sizeof warn - strlen(warn) - 1);
   }
   if (!sdOk) strncat(warn, " WARN:SD error", sizeof warn - strlen(warn) - 1);
+  if (vbat > 1.0f && vbat < 3.5f) strncat(warn, " WARN:battery low", sizeof warn - strlen(warn) - 1);
+  char bat[24];
+  snprintf(bat, sizeof bat, "bat=%.2fV %d%%", (double)vbat, vbatPct);
 
   char rows[80] = "";
   if (logging) {
@@ -302,9 +339,9 @@ void heartbeatTick() {
   }
   hbMinL = 1e9; hbMaxL = -1; hbFlagsOr = 0; hbBadReads = hbReads = 0;
 
-  snprintf(line, sizeof line, "[HB] %s rtc=%s | %s %s | %s | SD %s | %s |%s",
+  snprintf(line, sizeof line, "[HB] %s rtc=%s | %s %s | %s | SD %s | %s | %s |%s",
            t, rtcStr, logging ? "LOGGING" : "STOPPED", logging ? fileName : "",
-           rows, sdOk ? "ok" : "ERROR", sens, warn[0] ? warn : " OK");
+           rows, sdOk ? "ok" : "ERROR", sens, bat, warn[0] ? warn : " OK");
   Serial.println(line);
 }
 
@@ -381,6 +418,7 @@ void setup() {
   ldcOk = ldc.begin(Wire) && ldc.startChannel(LDC_CHANNEL);
   delay(60);   // first conversion
 
+  updateBattery();                         // so the first rows already have a value
   mountSd();
   switchOn = readSwitchRaw();             // honour the switch position at power-up
   printStatus();
@@ -391,6 +429,7 @@ void setup() {
 void loop() {
   handleSerial();
   handleSwitch();
+  if (millis() - lastVbat >= VBAT_UPDATE_MS) updateBattery();
   updateLed();
   heartbeatTick();
 
