@@ -15,6 +15,15 @@ export interface DeviceMeta {
   sample_rate_hz: number | null;
   /** The `# ldc1612,...` line: sensor settings, or a NOT FOUND message. */
   sensor_status: string | null;
+  /** `# device_id,...` header line, once the firmware writes one. */
+  device_id: string | null;
+}
+
+/** A note typed over USB serial during recording (`m <note>` in the firmware). */
+export interface DeviceMark {
+  datetime: string;
+  elapsed_ms: number | null;
+  note: string;
 }
 
 export interface DriftCheck {
@@ -38,8 +47,13 @@ export interface DeviceStats {
   last_datetime: string | null;
   /** Rows that have an inductance value. 0 means the sensor wasn't connected. */
   sensor_rows: number;
-  /** Rows with any ldc_flags bit set. */
+  /** Rows with a serious ldc_flags bit set (under/over-range, no oscillation). */
   flagged_rows: number;
+  /**
+   * Rows with only the "amplitude warning" bit (1). Every row of the team's belt recordings
+   * has it, so it's reported for information but not treated as a data problem.
+   */
+  amplitude_warning_rows: number;
   /** Samples lost, counted from jumps in the `sample` index. */
   missed_samples: number;
   /** Intervals noticeably longer than the sample period (> 1.25×). */
@@ -57,6 +71,22 @@ export interface DeviceColumns {
   ldc_freq_hz: Float64Array;
   ldc_flags: Float64Array;
   a0_raw: Float64Array;
+  /** Battery voltage measured by the logger (firmware 0.5+). NaN where absent. */
+  vbat_v: Float64Array;
+  /** The logger's own charge estimate from a LiPo voltage curve, 0-100. NaN where absent. */
+  battery_pct: Float64Array;
+}
+
+/** Battery summary. null when the file has no battery columns (firmware before 0.5). */
+export interface BatterySummary {
+  /** First and last *plausible* readings (see PLAUSIBLE_VBAT_V). null if there were none. */
+  start_v: number | null;
+  end_v: number | null;
+  start_pct: number | null;
+  end_pct: number | null;
+  /** Rows whose voltage can't be a LiPo running the logger (USB power, loose divider wire...). */
+  implausible_rows: number;
+  rows_with_reading: number;
 }
 
 export interface DeviceRecording {
@@ -65,11 +95,27 @@ export interface DeviceRecording {
   drift_checks: DriftCheck[];
   /** null = no stop line: the file ended unexpectedly (e.g. power was cut). */
   stop: StopLine | null;
+  marks: DeviceMark[];
+  battery: BatterySummary | null;
   columns: DeviceColumns;
 }
 
 type ColumnName = keyof DeviceColumns;
 const DEFAULT_SAMPLE_RATE_HZ = 25;
+/** ldc_flags bits that mean the reading is bad: 8 under-range, 4 over-range, 2 no oscillation. */
+const SERIOUS_FLAGS = 8 | 4 | 2;
+
+/**
+ * Voltages a single-cell LiPo can actually have while running the logger. Readings outside
+ * this range mean the measurement itself is off: ~6.6 V is the ADC maxed out (3.3 V x 2,
+ * e.g. A3 floating or not wired to the divider), and very low values usually mean the
+ * divider isn't connected to BAT. While on USB the reading shows the charger's voltage.
+ */
+export const PLAUSIBLE_VBAT_V = { min: 3.0, max: 4.35 } as const;
+
+function finiteOrNull(n: number | undefined): number | null {
+  return n !== undefined && Number.isFinite(n) ? n : null;
+}
 
 /** A number array that grows as rows arrive, stored compactly as Float64. */
 class Column {
@@ -121,7 +167,9 @@ export function createDeviceParser() {
     rtc: null,
     sample_rate_hz: null,
     sensor_status: null,
+    device_id: null,
   };
+  const marks: DeviceMark[] = [];
   const driftChecks: DriftCheck[] = [];
   let stop: StopLine | null = null;
 
@@ -132,6 +180,8 @@ export function createDeviceParser() {
     ldc_freq_hz: new Column(),
     ldc_flags: new Column(),
     a0_raw: new Column(),
+    vbat_v: new Column(),
+    battery_pct: new Column(),
   };
   // Position of each column in a data row, learned from the header row.
   let fieldIndex: Record<string, number> | null = null;
@@ -145,10 +195,15 @@ export function createDeviceParser() {
   let prevSample = NaN;
   let sensorRows = 0;
   let flaggedRows = 0;
+  let amplitudeWarningRows = 0;
   let missedSamples = 0;
   let lateSamples = 0;
   let maxInterval = 0;
   let malformed = 0;
+  let batteryRows = 0;
+  let implausibleBattery = 0;
+  let batteryStart: { v: number; pct: number } | null = null;
+  let batteryEnd: { v: number; pct: number } | null = null;
 
   function handleComment(line: string) {
     const body = line.replace(/^#\s*/, "");
@@ -156,6 +211,17 @@ export function createDeviceParser() {
     const key = (comma >= 0 ? body.slice(0, comma) : body).trim();
     const rest = comma >= 0 ? body.slice(comma + 1).trim() : "";
 
+    if (key === "mark") {
+      // "# mark,<datetime>,elapsed_ms=1234,<free text, may itself contain commas>"
+      const parts = rest.split(",");
+      const elapsed = /^elapsed_ms=(\d+)$/.exec((parts[1] ?? "").trim());
+      marks.push({
+        datetime: parts[0].trim(),
+        elapsed_ms: elapsed ? Number(elapsed[1]) : null,
+        note: parts.slice(elapsed ? 2 : 1).join(",").trim(),
+      });
+      return;
+    }
     if (key === "drift_check" || key === "stop") {
       const parts = rest.split(",");
       const kv = parseKeyValues(parts.slice(1));
@@ -183,6 +249,7 @@ export function createDeviceParser() {
     else if (key === "rtc") meta.rtc = rest;
     else if (key === "sample_rate_hz") meta.sample_rate_hz = optionalNumber(rest);
     else if (key === "ldc1612") meta.sensor_status = rest;
+    else if (key === "device_id") meta.device_id = rest;
   }
 
   function handleDataRow(line: string, index: Record<string, number>) {
@@ -215,7 +282,10 @@ export function createDeviceParser() {
     const L = toNumber(fields[index.ldc_L_uH]);
     const flags = toNumber(fields[index.ldc_flags]);
     if (Number.isFinite(L)) sensorRows++;
-    if (Number.isFinite(flags) && flags !== 0) flaggedRows++;
+    if (Number.isFinite(flags)) {
+      if (flags & SERIOUS_FLAGS) flaggedRows++;
+      else if (flags & 1) amplitudeWarningRows++;
+    }
 
     const datetime = index.datetime !== undefined ? fields[index.datetime].trim() : "";
     if (firstDatetime === null) firstDatetime = datetime;
@@ -227,6 +297,21 @@ export function createDeviceParser() {
     columns.ldc_freq_hz.push(toNumber(fields[index.ldc_freq_hz]));
     columns.ldc_flags.push(flags);
     columns.a0_raw.push(toNumber(fields[index.a0_raw]));
+
+    // Battery columns exist only from firmware 0.5; older files get NaN (index undefined).
+    const vbat = toNumber(fields[index.vbat_v]);
+    const pct = toNumber(fields[index.battery_pct]);
+    columns.vbat_v.push(vbat);
+    columns.battery_pct.push(pct);
+    if (Number.isFinite(vbat)) {
+      batteryRows++;
+      if (vbat < PLAUSIBLE_VBAT_V.min || vbat > PLAUSIBLE_VBAT_V.max) {
+        implausibleBattery++;
+      } else {
+        if (batteryStart === null) batteryStart = { v: vbat, pct };
+        batteryEnd = { v: vbat, pct };
+      }
+    }
   }
 
   function handleLine(rawLine: string) {
@@ -275,6 +360,7 @@ export function createDeviceParser() {
           last_datetime: lastDatetime,
           sensor_rows: sensorRows,
           flagged_rows: flaggedRows,
+          amplitude_warning_rows: amplitudeWarningRows,
           missed_samples: missedSamples,
           late_samples: lateSamples,
           max_interval_ms: maxInterval,
@@ -282,6 +368,18 @@ export function createDeviceParser() {
         },
         drift_checks: driftChecks,
         stop,
+        marks,
+        battery:
+          fieldIndex.vbat_v === undefined
+            ? null
+            : {
+                start_v: batteryStart?.v ?? null,
+                end_v: batteryEnd?.v ?? null,
+                start_pct: finiteOrNull(batteryStart?.pct),
+                end_pct: finiteOrNull(batteryEnd?.pct),
+                implausible_rows: implausibleBattery,
+                rows_with_reading: batteryRows,
+              },
         columns: {
           elapsed_ms: columns.elapsed_ms.toArray(),
           sample: columns.sample.toArray(),
@@ -289,6 +387,8 @@ export function createDeviceParser() {
           ldc_freq_hz: columns.ldc_freq_hz.toArray(),
           ldc_flags: columns.ldc_flags.toArray(),
           a0_raw: columns.a0_raw.toArray(),
+          vbat_v: columns.vbat_v.toArray(),
+          battery_pct: columns.battery_pct.toArray(),
         },
       };
     },
@@ -304,11 +404,14 @@ export function parseDeviceCsv(text: string): DeviceRecording {
 
 // --- Which files on the card are recordings -----------------------------------------------
 
-const RECORDING_NAME = /^S\d{8}_\d{6}(_\d{2})?\.csv$/i;
+// After the timestamp, allow `_01` (same-second duplicate) or a note someone added by hand,
+// e.g. `S20261029_134821_14-17in.csv`.
+const RECORDING_NAME = /^S\d{8}_\d{6}(_[^\/]+)?\.csv$/i;
 const IGNORED_FOLDERS = ["system volume information", ".trashes", ".spotlight-v100", ".fseventsd"];
 
 /**
- * True for recording files like `S20261026_205511.csv` or `S20261026_205511_01.csv`.
+ * True for recording files like `S20261026_205511.csv`, `S20261026_205511_01.csv` or
+ * `S20261029_134821_14-17in.csv`.
  * `path` may include folders (from a folder pick); anything inside system folders, and
  * macOS `._*` resource files, is ignored.
  */
@@ -337,8 +440,13 @@ export function describeIssues(rec: DeviceRecording): RecordingIssues {
   if (!rec.stop) notes.push("Ended unexpectedly (no stop line, e.g. power was cut)");
   if (s.missed_samples > 0) notes.push(`${s.missed_samples} missed sample(s)`);
   if (s.late_samples > 0) notes.push(`${s.late_samples} late sample(s), longest gap ${s.max_interval_ms} ms`);
-  if (s.flagged_rows > 0) notes.push(`${s.flagged_rows} row(s) with sensor warning flags`);
+  if (s.flagged_rows > 0) notes.push(`${s.flagged_rows} row(s) where the sensor reported a bad reading (flags)`);
   if (s.malformed_lines > 0) notes.push(`${s.malformed_lines} unreadable line(s) skipped`);
+  if (rec.battery && rec.battery.implausible_rows > 0) {
+    notes.push(
+      `${rec.battery.implausible_rows} battery reading(s) outside ${PLAUSIBLE_VBAT_V.min}-${PLAUSIBLE_VBAT_V.max} V ignored (USB power or a loose divider wire?)`,
+    );
+  }
   if (rec.stop?.missed_slots) notes.push(`Device reported ${rec.stop.missed_slots} missed slot(s)`);
 
   const badge: RecordingBadge =

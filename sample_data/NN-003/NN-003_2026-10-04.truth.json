@@ -2,6 +2,7 @@
  "truth_format": 1,
  "source_file": "NN-003_2026-10-04.csv",
  "start_utc": "2026-10-04T02:13:00Z",
+ "start_local": "2026-10-03 22:13:00",
  "profile": "noisy",
  "seed": 303,
  "duration_s": 30600.0,
@@ -1543,12 +1544,6 @@
    1.001
   ],
   "quality": [
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
    "good",
    "good",
    "good",
@@ -1558,81 +1553,24 @@
    "good",
    "good",
    "good",
+   "poor",
+   "good",
+   "good",
    "good",
    "poor",
    "poor",
    "good",
    "good",
+   "poor",
+   "good",
+   "poor",
    "good",
    "no_signal",
    "no_signal",
    "poor",
    "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "poor",
    "poor",
-   "good",
-   "good",
-   "poor",
-   "poor",
-   "no_signal",
-   "no_signal",
-   "no_signal",
-   "no_signal",
-   "no_signal",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "poor",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "poor",
    "good",
    "good",
@@ -1642,124 +1580,9 @@
    "good",
    "good",
    "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "no_signal",
-   "no_signal",
-   "no_signal",
-   "no_signal",
-   "no_signal",
-   "no_signal",
-   "no_signal",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "poor",
    "poor",
    "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "no_signal",
-   "no_signal",
-   "no_signal",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
    "good",
    "good",
    "poor",
@@ -1768,8 +1591,132 @@
    "no_signal",
    "no_signal",
    "no_signal",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "poor",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
    "no_signal",
    "no_signal",
+   "no_signal",
+   "no_signal",
+   "no_signal",
+   "no_signal",
+   "no_signal",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
    "poor",
    "good",
    "good",
@@ -1778,16 +1725,6 @@
    "good",
    "good",
    "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
    "good",
    "good",
    "good",
@@ -1797,7 +1734,28 @@
    "poor",
    "good",
    "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "poor",
+   "good",
+   "no_signal",
+   "no_signal",
+   "no_signal",
+   "good",
+   "good",
+   "good",
+   "good",
    "good",
    "good",
    "good",
@@ -1813,8 +1771,19 @@
    "no_signal",
    "no_signal",
    "no_signal",
-   "no_signal",
-   "no_signal",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "good",
    "good",
    "good",
@@ -1824,7 +1793,8 @@
    "good",
    "good",
    "good",
-   "poor",
+   "good",
+   "good",
    "good",
    "good",
    "good",
@@ -1846,87 +1816,6 @@
    "no_signal",
    "no_signal",
    "no_signal",
-   "no_signal",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
    "good",
    "good",
    "good",
@@ -1945,80 +1834,10 @@
    "good",
    "good",
    "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "poor",
    "good",
    "good",
    "good",
    "good",
-   "poor",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "poor",
-   "poor",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
    "no_signal",
    "no_signal",
    "no_signal",
@@ -2027,6 +1846,154 @@
    "no_signal",
    "no_signal",
    "no_signal",
+   "no_signal",
+   "no_signal",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "poor",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "poor",
+   "poor",
+   "poor",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
    "poor",
    "good",
    "good",
@@ -2045,7 +2012,41 @@
    "good",
    "good",
    "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "poor",
+   "no_signal",
+   "no_signal",
+   "no_signal",
+   "no_signal",
+   "no_signal",
+   "no_signal",
+   "no_signal",
+   "no_signal",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
    "good",
    "good",
    "poor",
@@ -2058,23 +2059,28 @@
  "events": [
   {
    "kind": "artifact_spike",
-   "start_ms": 56250,
-   "end_ms": 56350
+   "start_ms": 304280,
+   "end_ms": 304320
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 322100,
-   "end_ms": 322250
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 669100,
-   "end_ms": 669250
+   "start_ms": 579600,
+   "end_ms": 579640
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 1017150,
-   "end_ms": 1023050
+   "start_ms": 838200,
+   "end_ms": 844200
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 1063160,
+   "end_ms": 1063200
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 1177240,
+   "end_ms": 1177360
   },
   {
    "kind": "no_signal",
@@ -2082,19 +2088,44 @@
    "end_ms": 1408025
   },
   {
+   "kind": "artifact_spike",
+   "start_ms": 1285680,
+   "end_ms": 1285760
+  },
+  {
    "kind": "baseline_shift",
-   "start_ms": 2219150,
-   "end_ms": 2219200
+   "start_ms": 1541760,
+   "end_ms": 1541800
+  },
+  {
+   "kind": "baseline_shift",
+   "start_ms": 1573760,
+   "end_ms": 1573800
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 2259100,
-   "end_ms": 2259200
+   "start_ms": 1646080,
+   "end_ms": 1646160
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 2456300,
-   "end_ms": 2456400
+   "start_ms": 1971800,
+   "end_ms": 1971840
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 2174360,
+   "end_ms": 2182200
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 2241080,
+   "end_ms": 2250120
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 2508920,
+   "end_ms": 2509000
   },
   {
    "kind": "no_signal",
@@ -2102,84 +2133,89 @@
    "end_ms": 2819994
   },
   {
-   "kind": "baseline_shift",
-   "start_ms": 2953550,
-   "end_ms": 2953600
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 3341950,
-   "end_ms": 3349300
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 3365250,
-   "end_ms": 3369700
-  },
-  {
    "kind": "artifact_spike",
-   "start_ms": 3372400,
-   "end_ms": 3372450
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 3792350,
-   "end_ms": 3795600
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 4054900,
-   "end_ms": 4055050
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 4234900,
-   "end_ms": 4238450
+   "start_ms": 2642480,
+   "end_ms": 2642520
   },
   {
    "kind": "baseline_shift",
-   "start_ms": 4390450,
-   "end_ms": 4390500
+   "start_ms": 2949560,
+   "end_ms": 2949600
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 4562350,
-   "end_ms": 4565450
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 4644250,
-   "end_ms": 4644300
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 5457900,
-   "end_ms": 5458050
+   "start_ms": 3096440,
+   "end_ms": 3099680
   },
   {
    "kind": "baseline_shift",
-   "start_ms": 5701100,
-   "end_ms": 5701150
+   "start_ms": 3395080,
+   "end_ms": 3395120
+  },
+  {
+   "kind": "data_gap",
+   "start_ms": 3470920,
+   "end_ms": 3498520
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 6399100,
-   "end_ms": 6403850
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 7962600,
-   "end_ms": 7969150
-  },
-  {
-   "kind": "baseline_shift",
-   "start_ms": 8182400,
-   "end_ms": 8182450
+   "start_ms": 4398920,
+   "end_ms": 4401680
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 8618350,
-   "end_ms": 8618450
+   "start_ms": 4855080,
+   "end_ms": 4855160
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 5324360,
+   "end_ms": 5324440
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 5593360,
+   "end_ms": 5593400
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 6104120,
+   "end_ms": 6104200
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 6620560,
+   "end_ms": 6627080
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 6692360,
+   "end_ms": 6699600
+  },
+  {
+   "kind": "baseline_shift",
+   "start_ms": 7092200,
+   "end_ms": 7092240
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 7392840,
+   "end_ms": 7392960
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 8209840,
+   "end_ms": 8209960
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 8697560,
+   "end_ms": 8697640
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 9061040,
+   "end_ms": 9061160
   },
   {
    "kind": "no_signal",
@@ -2187,39 +2223,39 @@
    "end_ms": 9708538
   },
   {
+   "kind": "artifact_burst",
+   "start_ms": 9327680,
+   "end_ms": 9329680
+  },
+  {
    "kind": "artifact_spike",
-   "start_ms": 9566800,
-   "end_ms": 9566850
+   "start_ms": 9413360,
+   "end_ms": 9413400
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 10067750,
-   "end_ms": 10070600
-  },
-  {
-   "kind": "baseline_shift",
-   "start_ms": 10341950,
-   "end_ms": 10342000
+   "start_ms": 10373160,
+   "end_ms": 10381440
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 10840900,
-   "end_ms": 10844600
+   "start_ms": 10397360,
+   "end_ms": 10406680
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 11260000,
+   "end_ms": 11263840
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 11410950,
-   "end_ms": 11411000
+   "start_ms": 12195560,
+   "end_ms": 12195680
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 11479250,
-   "end_ms": 11479300
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 11748700,
-   "end_ms": 11748850
+   "start_ms": 12317400,
+   "end_ms": 12317440
   },
   {
    "kind": "no_signal",
@@ -2227,49 +2263,49 @@
    "end_ms": 12454211
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 12419600,
-   "end_ms": 12426350
-  },
-  {
-   "kind": "data_gap",
-   "start_ms": 12984000,
-   "end_ms": 13003250
-  },
-  {
    "kind": "no_signal",
    "start_ms": 13190566,
    "end_ms": 13647119
   },
   {
-   "kind": "artifact_spike",
-   "start_ms": 13328950,
-   "end_ms": 13329100
+   "kind": "baseline_shift",
+   "start_ms": 13218840,
+   "end_ms": 13218880
   },
   {
-   "kind": "artifact_spike",
-   "start_ms": 13477800,
-   "end_ms": 13477950
+   "kind": "artifact_burst",
+   "start_ms": 13484760,
+   "end_ms": 13493640
   },
   {
    "kind": "baseline_shift",
-   "start_ms": 14133000,
-   "end_ms": 14133050
+   "start_ms": 13526160,
+   "end_ms": 13526200
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 14670100,
-   "end_ms": 14677100
+   "start_ms": 13666680,
+   "end_ms": 13669440
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 15077750,
-   "end_ms": 15084600
+   "start_ms": 13876280,
+   "end_ms": 13883280
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 15279600,
-   "end_ms": 15287100
+   "kind": "artifact_spike",
+   "start_ms": 14700360,
+   "end_ms": 14700440
+  },
+  {
+   "kind": "data_gap",
+   "start_ms": 15370440,
+   "end_ms": 15381200
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 15665720,
+   "end_ms": 15665800
   },
   {
    "kind": "no_signal",
@@ -2277,39 +2313,24 @@
    "end_ms": 16295830
   },
   {
-   "kind": "artifact_spike",
-   "start_ms": 15855950,
-   "end_ms": 15856100
+   "kind": "artifact_burst",
+   "start_ms": 15785920,
+   "end_ms": 15788200
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 16624650,
-   "end_ms": 16634300
-  },
-  {
-   "kind": "baseline_shift",
-   "start_ms": 16890550,
-   "end_ms": 16890600
+   "start_ms": 15925400,
+   "end_ms": 15934440
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 16893350,
-   "end_ms": 16893500
+   "start_ms": 16836120,
+   "end_ms": 16836200
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 17279200,
-   "end_ms": 17279250
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 17526700,
-   "end_ms": 17526800
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 17585550,
-   "end_ms": 17585700
+   "start_ms": 16884320,
+   "end_ms": 16884440
   },
   {
    "kind": "no_signal",
@@ -2327,14 +2348,29 @@
    "end_ms": 17917334
   },
   {
+   "kind": "artifact_spike",
+   "start_ms": 18064720,
+   "end_ms": 18064800
+  },
+  {
+   "kind": "baseline_shift",
+   "start_ms": 18069680,
+   "end_ms": 18069720
+  },
+  {
    "kind": "pause",
    "start_ms": 18101814,
    "end_ms": 18118823
   },
   {
    "kind": "baseline_shift",
-   "start_ms": 19099800,
-   "end_ms": 19099850
+   "start_ms": 18478480,
+   "end_ms": 18478520
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 18716680,
+   "end_ms": 18716720
   },
   {
    "kind": "shallow",
@@ -2342,29 +2378,39 @@
    "end_ms": 19295012
   },
   {
-   "kind": "artifact_spike",
-   "start_ms": 19193250,
-   "end_ms": 19193350
+   "kind": "artifact_burst",
+   "start_ms": 19202240,
+   "end_ms": 19206760
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 19406150,
-   "end_ms": 19413000
+   "start_ms": 19688720,
+   "end_ms": 19695720
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 19738720,
+   "end_ms": 19738800
+  },
+  {
+   "kind": "baseline_shift",
+   "start_ms": 19887040,
+   "end_ms": 19887080
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 20083200,
+   "end_ms": 20083320
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 19749200,
-   "end_ms": 19755700
+   "start_ms": 20513200,
+   "end_ms": 20516760
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 20248550,
-   "end_ms": 20248700
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 20478350,
-   "end_ms": 20478450
+   "start_ms": 20728000,
+   "end_ms": 20728120
   },
   {
    "kind": "pause",
@@ -2372,104 +2418,139 @@
    "end_ms": 20820742
   },
   {
-   "kind": "artifact_spike",
-   "start_ms": 21425850,
-   "end_ms": 21426000
-  },
-  {
-   "kind": "data_gap",
-   "start_ms": 22458600,
-   "end_ms": 22477250
+   "kind": "artifact_burst",
+   "start_ms": 20837760,
+   "end_ms": 20845840
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 22855600,
-   "end_ms": 22855650
+   "start_ms": 21214400,
+   "end_ms": 21214480
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 23575650,
-   "end_ms": 23584100
+   "start_ms": 21408880,
+   "end_ms": 21415560
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 24170800,
-   "end_ms": 24170850
+   "start_ms": 21609360,
+   "end_ms": 21609480
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 21792760,
+   "end_ms": 21792840
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 21959320,
+   "end_ms": 21959360
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 22353640,
+   "end_ms": 22357000
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 22464320,
+   "end_ms": 22464400
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 22906800,
+   "end_ms": 22912160
   },
   {
    "kind": "baseline_shift",
-   "start_ms": 24409450,
-   "end_ms": 24409500
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 24565050,
-   "end_ms": 24565200
+   "start_ms": 23361880,
+   "end_ms": 23361920
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 24825800,
-   "end_ms": 24829100
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 25099100,
-   "end_ms": 25099200
+   "start_ms": 23656920,
+   "end_ms": 23663880
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 25112100,
-   "end_ms": 25118900
+   "start_ms": 23745280,
+   "end_ms": 23749320
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 24256840,
+   "end_ms": 24266440
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 24638680,
+   "end_ms": 24642480
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 25862280,
+   "end_ms": 25862400
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 26149240,
+   "end_ms": 26149280
   },
   {
    "kind": "baseline_shift",
-   "start_ms": 25272850,
-   "end_ms": 25272900
+   "start_ms": 26161880,
+   "end_ms": 26161920
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 25845150,
-   "end_ms": 25854800
+   "start_ms": 26283200,
+   "end_ms": 26285480
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 26491560,
+   "end_ms": 26491640
+  },
+  {
+   "kind": "baseline_shift",
+   "start_ms": 26564560,
+   "end_ms": 26564600
+  },
+  {
+   "kind": "baseline_shift",
+   "start_ms": 26581840,
+   "end_ms": 26581880
+  },
+  {
+   "kind": "baseline_shift",
+   "start_ms": 26679520,
+   "end_ms": 26679560
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 26889560,
+   "end_ms": 26889640
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 26341100,
-   "end_ms": 26349500
+   "start_ms": 27000440,
+   "end_ms": 27002440
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 26518400,
-   "end_ms": 26518500
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 26548050,
-   "end_ms": 26548100
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 26724850,
-   "end_ms": 26724900
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 27092400,
-   "end_ms": 27092450
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 27240000,
-   "end_ms": 27240050
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 27489450,
-   "end_ms": 27489500
+   "start_ms": 27367760,
+   "end_ms": 27367800
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 27880850,
-   "end_ms": 27886350
+   "start_ms": 27781320,
+   "end_ms": 27783360
+  },
+  {
+   "kind": "baseline_shift",
+   "start_ms": 28558120,
+   "end_ms": 28558160
   },
   {
    "kind": "no_signal",
@@ -2478,28 +2559,33 @@
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 28870400,
-   "end_ms": 28870500
+   "start_ms": 29016120,
+   "end_ms": 29016240
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 29445050,
-   "end_ms": 29449050
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 29838400,
-   "end_ms": 29844600
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 30152500,
-   "end_ms": 30154650
+   "start_ms": 29323800,
+   "end_ms": 29326960
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 30318750,
-   "end_ms": 30318900
+   "start_ms": 29682040,
+   "end_ms": 29682080
+  },
+  {
+   "kind": "baseline_shift",
+   "start_ms": 29748920,
+   "end_ms": 29748960
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 30055080,
+   "end_ms": 30055120
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 30309640,
+   "end_ms": 30312960
   }
  ]
 }

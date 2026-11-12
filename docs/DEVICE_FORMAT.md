@@ -1,7 +1,9 @@
-# Night Night device CSV format (firmware 0.1 / 0.2)
+# Night Night device CSV format (firmware 0.1 – 0.5)
 
-This is what the **real logger firmware** writes to the microSD card today. It's different from
-the format the synthetic generator writes (`docs/FILE_FORMAT.md`); see "Differences" below.
+This is what the **real logger firmware** writes to the microSD card. Since 2026-11-05 the
+synthetic generator (`tools/generate_synthetic.py`) writes this same format, adding
+`# device_id,…`, `# synthetic,true`, `# profile,…` and `# seed,…` header lines and
+`reason=synthetic` in the stop line.
 The upload page (`/upload`) reads this format.
 
 Source: the firmware team's description, checked against five bench recordings from firmware
@@ -13,6 +15,7 @@ real data so far.
 - One file per recording: `S<YYYYMMDD>_<HHMMSS>.csv`, named from the device clock at start,
   e.g. `S20261026_205511.csv`.
 - If two recordings start in the same second, the second gets a suffix: `S20261026_205511_01.csv`.
+- People sometimes add a note to the name by hand, e.g. `S20261029_134821_14-17in.csv`. Any `_…` suffix is accepted.
 - Other files on the card (`sdtest.csv`, macOS `._*` files, `.Trashes`,
   `System Volume Information`) are not recordings and are ignored.
 
@@ -45,7 +48,8 @@ Header lines come first. Event lines can appear anywhere after the column row.
 | `# sample_rate_hz,<n>` | Nominal sample rate. 25 Hz (one sample every 40 ms). |
 | `# ldc1612,<settings>` | Inductance sensor settings, or `NOT FOUND (sensor columns blank)` if no sensor answered. |
 | `# drift_check,<datetime>,elapsed_ms=…,drift_ms=…,resolution_ms=…` | Every 10 minutes: how far the clock has drifted from the elapsed-time counter. |
-| `# stop,<datetime>,reason=…,rows=…,missed_slots=…` | Last line of a cleanly ended file. **Missing if power was cut.** Observed reasons: `serial`, `time_set`. |
+| `# stop,<datetime>,reason=…,rows=…,missed_slots=…` | Last line of a cleanly ended file. **Missing if power was cut.** Observed reasons: `serial`, `time_set`, `switch` (logging switch turned off). |
+| `# mark,<datetime>,elapsed_ms=…,<note>` | *(firmware 0.5)* A note typed over USB serial during a recording (`m <note>`). Not yet shown by the dashboard. |
 
 ## Columns
 
@@ -57,10 +61,17 @@ Header lines come first. Event lines can appear anywhere after the column row.
 | `ldc_raw` | Raw 28-bit count from the LDC1612 sensor. |
 | `ldc_freq_hz` | Sensor oscillation frequency. Rises when belt inductance falls. |
 | `ldc_L_uH` | Belt inductance in microhenries: **the breathing signal**. |
-| `ldc_flags` | Bit flags: 8 = under-range, 4 = over-range, 2 = watchdog / no oscillation, 1 = amplitude warning. 0 = clean. |
+| `ldc_flags` | Bit flags: 8 = under-range, 4 = over-range, 2 = watchdog / no oscillation, 1 = amplitude warning. 0 = clean. **Bit 1 is set on every row of the belt recordings so far**, so the dashboard treats it as informational and only counts 2/4/8 as bad readings. |
 | `a0_raw` | Unused auxiliary analog input. Debug only. |
+| `vbat_v` | *(firmware 0.5+)* Battery voltage in volts, from a 100 kΩ / 100 kΩ divider between BAT and GND into pin A3 (reading × 2). Re-measured every 10 s, so it repeats between updates. |
+| `battery_pct` | *(firmware 0.5+)* The logger's charge estimate, 0–100, from a LiPo resting-voltage curve. An estimate, not a measured charge. |
 
 Sensor columns are blank when the sensor isn't connected.
+
+**Battery readings to distrust:** while USB is plugged in, BAT shows the charger's voltage, not
+the battery's. A reading of about **6.6 V** is the ADC at full scale (3.3 V × 2), meaning A3 isn't
+seeing the divider (loose wire, or no battery and the pin floating). The dashboard ignores readings
+outside 3.0–4.35 V and says so.
 
 ## Observed in the bench files
 
@@ -77,13 +88,22 @@ Sensor columns are blank when the sensor isn't connected.
 | Start time | `start_utc`, UTC | `start_local`, device local time, no time zone |
 | Sample rate | 20 Hz (`sample_period_ms=50`) | 25 Hz (`sample_rate_hz=25`) |
 | Signal | `raw_value` (generic counts) | `ldc_L_uH` (inductance), plus `ldc_raw` and `ldc_freq_hz` |
-| Battery | `battery_mv` column | **none** |
+| Battery | `battery_mv` column (millivolts, once a minute) | `vbat_v` (volts, every row, updated every 10 s) + `battery_pct` (firmware 0.5+) |
 | Device ID | `device_id` header | **none** (only the file name and settings) |
 | Integrity info | data gaps from timestamps | `sample` index, `ldc_flags`, `drift_check`, `stop` line |
 
-Status (2026-10-27): the format is still being finalized with the firmware team. A **device ID** (header) and **battery voltage** (column) were left out by accident and are planned; the dashboard needs both (linking a card to a patient, and the battery panel).
+Status (2026-11-05): firmware 0.5 adds the battery columns. A **device ID** is still missing (needed to link a card to a patient automatically).
 
 Open questions for the firmware team:
-- Exact names and placement for the device ID and battery fields (e.g. `# device_id,NN-DEV-01` and a `battery_mv` column logged once a minute, blank otherwise).
+- Device ID: e.g. a `# device_id,NN-DEV-01` header line.
 - Is `ldc_flags = 1` (amplitude warning) expected on every row, as in the example above? If so, it shouldn't count as a data problem.
 - Can `start_local` include a UTC offset, so times stay correct across time zones and DST changes?
+
+## Things the signal processing must expect (seen in the bench files)
+
+- The belt (`channel 1`) rests around **4.0–4.9 µH**, and a normal breath moves it by about
+  **0.06–0.08 µH** (`S20261029_134821_14-17in.csv` shows clean breathing at ~17 breaths/min).
+- **Glitch readings without an error flag:** single values like 1970 µH or 1215 µH appear in
+  `S20261103_140336.csv` and `S20261103_143541.csv` while `ldc_flags` is still 1. Processing has to
+  reject physically impossible jumps itself.
+- Moving the sensor or coil (channel 0 key tests) produces large step changes, not breathing.

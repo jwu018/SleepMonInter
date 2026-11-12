@@ -53,6 +53,8 @@ export interface WaveformWindow {
   end_ms: number;
   t_ms: number[];
   raw_value: (number | null)[]; // null = data gap
-  /** "raw" = every 10 Hz point; "envelope" = min/max pairs per bucket (zoomed out). */
+  /** Unit of raw_value, e.g. "µH" (belt inductance). */
+  unit: string;
+  /** "raw" = every stored point; "envelope" = min/max pairs per bucket (zoomed out). */
   resolution: "raw" | "envelope";
 }

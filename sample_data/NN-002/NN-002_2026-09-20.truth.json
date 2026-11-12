@@ -2,6 +2,7 @@
  "truth_format": 1,
  "source_file": "NN-002_2026-09-20.csv",
  "start_utc": "2026-09-20T02:06:00Z",
+ "start_local": "2026-09-19 22:06:00",
  "profile": "declining",
  "seed": 201,
  "duration_s": 27000.0,
@@ -1382,33 +1383,8 @@
    "good",
    "good",
    "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
    "poor",
    "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
    "good",
    "good",
    "good",
@@ -1461,30 +1437,6 @@
    "good",
    "poor",
    "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
    "good",
    "good",
    "good",
@@ -1505,7 +1457,16 @@
    "good",
    "good",
    "good",
-   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "good",
    "good",
    "good",
@@ -1524,36 +1485,76 @@
    "poor",
    "good",
    "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
    "poor",
    "good",
    "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "poor",
    "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
    "good",
    "good",
    "good",
@@ -1607,6 +1608,55 @@
    "no_signal",
    "good",
    "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "poor",
    "good",
    "good",
@@ -1646,21 +1696,6 @@
    "good",
    "good",
    "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "good",
    "good",
    "good",
@@ -1680,50 +1715,6 @@
    "good",
    "good",
    "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "good",
    "good",
    "good",
@@ -1785,6 +1776,9 @@
    "good",
    "good",
    "poor",
+   "good",
+   "good",
+   "good",
    "poor",
    "good",
    "good",
@@ -1812,7 +1806,14 @@
    "good",
    "good",
    "good",
-   "poor"
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good"
   ]
  },
  "events": [
@@ -1825,6 +1826,11 @@
    "kind": "shallow",
    "start_ms": 708402,
    "end_ms": 948020
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 1143360,
+   "end_ms": 1143400
   },
   {
    "kind": "pause",
@@ -1842,29 +1848,14 @@
    "end_ms": 1539530
   },
   {
-   "kind": "data_gap",
-   "start_ms": 1616200,
-   "end_ms": 1622900
-  },
-  {
    "kind": "pause",
    "start_ms": 1724904,
    "end_ms": 1739539
   },
   {
-   "kind": "baseline_shift",
-   "start_ms": 2343000,
-   "end_ms": 2343050
-  },
-  {
    "kind": "pause",
    "start_ms": 2356133,
    "end_ms": 2364239
-  },
-  {
-   "kind": "baseline_shift",
-   "start_ms": 2737150,
-   "end_ms": 2737200
   },
   {
    "kind": "pause",
@@ -1877,19 +1868,14 @@
    "end_ms": 3800028
   },
   {
+   "kind": "artifact_burst",
+   "start_ms": 4294560,
+   "end_ms": 4297680
+  },
+  {
    "kind": "shallow",
    "start_ms": 5071944,
    "end_ms": 5263084
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 5766900,
-   "end_ms": 5770300
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 5886200,
-   "end_ms": 5888450
   },
   {
    "kind": "shallow",
@@ -1902,24 +1888,14 @@
    "end_ms": 6422876
   },
   {
-   "kind": "artifact_spike",
-   "start_ms": 6720300,
-   "end_ms": 6720350
-  },
-  {
    "kind": "pause",
    "start_ms": 6948265,
    "end_ms": 6958475
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 7268650,
-   "end_ms": 7276100
-  },
-  {
-   "kind": "baseline_shift",
-   "start_ms": 8523900,
-   "end_ms": 8523950
+   "start_ms": 7092000,
+   "end_ms": 7098880
   },
   {
    "kind": "shallow",
@@ -1927,29 +1903,19 @@
    "end_ms": 8886366
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 9512350,
-   "end_ms": 9521400
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 9698700,
-   "end_ms": 9701650
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 10253350,
-   "end_ms": 10253450
-  },
-  {
    "kind": "pause",
    "start_ms": 10669975,
    "end_ms": 10688958
   },
   {
-   "kind": "baseline_shift",
-   "start_ms": 11421050,
-   "end_ms": 11421100
+   "kind": "data_gap",
+   "start_ms": 11150040,
+   "end_ms": 11165240
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 11350640,
+   "end_ms": 11350760
   },
   {
    "kind": "pause",
@@ -1987,11 +1953,6 @@
    "end_ms": 14439602
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 14658500,
-   "end_ms": 14666700
-  },
-  {
    "kind": "pause",
    "start_ms": 15348216,
    "end_ms": 15359869
@@ -2007,14 +1968,14 @@
    "end_ms": 15617429
   },
   {
+   "kind": "artifact_burst",
+   "start_ms": 16015200,
+   "end_ms": 16023600
+  },
+  {
    "kind": "shallow",
    "start_ms": 16443879,
    "end_ms": 16511227
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 17034700,
-   "end_ms": 17034750
   },
   {
    "kind": "pause",
@@ -2022,14 +1983,14 @@
    "end_ms": 17162375
   },
   {
+   "kind": "artifact_burst",
+   "start_ms": 17594960,
+   "end_ms": 17601600
+  },
+  {
    "kind": "pause",
    "start_ms": 18223012,
    "end_ms": 18233932
-  },
-  {
-   "kind": "baseline_shift",
-   "start_ms": 19018300,
-   "end_ms": 19018350
   },
   {
    "kind": "pause",
@@ -2052,6 +2013,11 @@
    "end_ms": 21061546
   },
   {
+   "kind": "baseline_shift",
+   "start_ms": 21057080,
+   "end_ms": 21057120
+  },
+  {
    "kind": "pause",
    "start_ms": 21360486,
    "end_ms": 21369027
@@ -2072,24 +2038,24 @@
    "end_ms": 23641664
   },
   {
+   "kind": "artifact_spike",
+   "start_ms": 24665560,
+   "end_ms": 24665640
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 24917960,
+   "end_ms": 24922000
+  },
+  {
    "kind": "shallow",
    "start_ms": 24934980,
    "end_ms": 25144124
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 25318100,
-   "end_ms": 25322250
-  },
-  {
    "kind": "pause",
    "start_ms": 25909489,
    "end_ms": 25917345
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 26953500,
-   "end_ms": 26953550
   }
  ]
 }

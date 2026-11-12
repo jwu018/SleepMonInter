@@ -4,12 +4,19 @@
 //
 // The file is only read here, in the user's browser. Nothing is sent to a server.
 
+import { analyzeRecording, type BreathingAnalysis } from "../processing/breathing";
 import { createDeviceParser, type DeviceRecording } from "./parseDeviceCsv";
 
 export type WorkerRequest = { file: File };
 export type WorkerResponse =
   | { type: "progress"; fraction: number }
-  | { type: "done"; hash: string; recording: DeviceRecording }
+  | {
+      type: "done";
+      hash: string;
+      recording: DeviceRecording;
+      analysis: BreathingAnalysis | null;
+      analysis_error: string | null;
+    }
   | { type: "error"; message: string };
 
 const CHUNK_BYTES = 1024 * 1024;
@@ -39,15 +46,32 @@ worker.onmessage = async (event) => {
     parser.push(decoder.decode());
     const recording = parser.finish();
 
+    // Breathing analysis (band-pass, breath detection...). A failure here shouldn't hide the
+    // file itself, so it's reported separately.
+    let analysis: BreathingAnalysis | null = null;
+    let analysisError: string | null = null;
+    try {
+      analysis = analyzeRecording(recording);
+    } catch (err) {
+      analysisError = `Breathing analysis failed: ${err instanceof Error ? err.message : String(err)}`;
+    }
+
     // "Transfer" the big arrays instead of copying them: ownership moves to the page instantly.
     const c = recording.columns;
-    worker.postMessage({ type: "done", hash, recording }, [
+    // bands.breathing IS `filtered` (same buffer), so it's listed once.
+    const transfer = analysis
+      ? [analysis.filtered.buffer, analysis.bands.noise.buffer, analysis.bands.interference.buffer]
+      : [];
+    worker.postMessage({ type: "done", hash, recording, analysis, analysis_error: analysisError }, [
+      ...transfer,
       c.elapsed_ms.buffer,
       c.sample.buffer,
       c.ldc_L_uH.buffer,
       c.ldc_freq_hz.buffer,
       c.ldc_flags.buffer,
       c.a0_raw.buffer,
+      c.vbat_v.buffer,
+      c.battery_pct.buffer,
     ]);
   } catch (err) {
     worker.postMessage({ type: "error", message: err instanceof Error ? err.message : String(err) });

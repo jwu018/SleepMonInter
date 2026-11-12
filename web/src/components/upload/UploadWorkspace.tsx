@@ -4,8 +4,11 @@ import { useRef, useState } from "react";
 import { fromDataTransfer, fromFileList, type PickedFile } from "@/lib/device/collectFiles";
 import { describeIssues, isRecordingFile, type DeviceRecording } from "@/lib/device/parseDeviceCsv";
 import { readRecording } from "@/lib/device/readRecording";
+import type { BreathingAnalysis } from "@/lib/processing/breathing";
 import { formatElapsed } from "@/lib/device/trace";
+import { BatteryIcon } from "./BatteryIcon";
 import { RecordingBadge } from "./RecordingBadge";
+import { type CompareItem, UploadCompare } from "./UploadCompare";
 import { UploadedRecordingView } from "./UploadedRecordingView";
 
 // The upload page's interactive part. Files are read in this browser tab only:
@@ -21,6 +24,8 @@ interface Item {
   progress: number;
   message?: string;
   recording?: DeviceRecording;
+  analysis?: BreathingAnalysis | null;
+  analysisError?: string | null;
   studyCode: string;
 }
 
@@ -30,6 +35,9 @@ export function UploadWorkspace({ studyCodes }: { studyCodes: string[] }) {
   const [items, setItems] = useState<Item[]>([]);
   const [ignored, setIgnored] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Recordings ticked for comparison, and whether the compare view is open.
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [comparing, setComparing] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   // Content fingerprints already imported -> file name, to catch duplicates (even renamed).
@@ -66,13 +74,15 @@ export function UploadWorkspace({ studyCodes }: { studyCodes: string[] }) {
         continue;
       }
       try {
-        const { hash, recording } = await readRecording(file, (f) => update(item.id, { progress: f }));
+        const { hash, recording, analysis, analysisError } = await readRecording(file, (f) =>
+          update(item.id, { progress: f }),
+        );
         const existing = hashes.current.get(hash);
         if (existing) {
           update(item.id, { status: "duplicate", progress: 1, message: `Same contents as ${existing}; not imported twice.` });
         } else {
           hashes.current.set(hash, item.name);
-          update(item.id, { status: "ready", progress: 1, recording });
+          update(item.id, { status: "ready", progress: 1, recording, analysis, analysisError });
         }
       } catch (err) {
         update(item.id, { status: "error", message: err instanceof Error ? err.message : String(err) });
@@ -85,8 +95,26 @@ export function UploadWorkspace({ studyCodes }: { studyCodes: string[] }) {
     setItems([]);
     setIgnored([]);
     setSelectedId(null);
+    setCompareIds([]);
+    setComparing(false);
     hashes.current.clear();
   }
+
+  if (comparing) {
+    const compareItems: CompareItem[] = items.flatMap((it, i) =>
+      compareIds.includes(it.id) && it.recording && it.analysis
+        ? [{ id: it.id, name: it.name, recording: it.recording, analysis: it.analysis, colorSlot: i }]
+        : [],
+    );
+    if (compareItems.length >= 2) {
+      return <UploadCompare items={compareItems} onBack={() => setComparing(false)} />;
+    }
+  }
+
+  const toggleCompare = (id: string) =>
+    setCompareIds((cur) =>
+      cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= 3 ? cur : [...cur, id],
+    );
 
   const selected = items.find((it) => it.id === selectedId && it.recording);
   if (selected?.recording) {
@@ -95,6 +123,8 @@ export function UploadWorkspace({ studyCodes }: { studyCodes: string[] }) {
         key={selected.id}
         name={selected.name}
         recording={selected.recording}
+        analysis={selected.analysis ?? null}
+        analysisError={selected.analysisError ?? null}
         studyCode={selected.studyCode}
         onBack={() => setSelectedId(null)}
       />
@@ -157,6 +187,16 @@ export function UploadWorkspace({ studyCodes }: { studyCodes: string[] }) {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Recordings in this tab ({items.length})</h2>
+            <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setComparing(true)}
+              disabled={compareIds.length < 2}
+              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-background disabled:opacity-40"
+              title="Tick 2-3 recordings with sensor data"
+            >
+              Compare ({compareIds.length})
+            </button>
             <button
               type="button"
               onClick={clearAll}
@@ -165,17 +205,22 @@ export function UploadWorkspace({ studyCodes }: { studyCodes: string[] }) {
             >
               Clear all
             </button>
+            </div>
           </div>
           <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-left text-sm">
               <thead className="bg-surface text-muted">
                 <tr>
+                  <th className="px-3 py-2 font-medium">
+                    <span className="sr-only">Compare</span>
+                  </th>
                   <th className="px-3 py-2 font-medium">File</th>
                   <th className="px-3 py-2 font-medium">Device clock at start</th>
                   <th className="px-3 py-2 text-right font-medium">Duration</th>
                   <th className="px-3 py-2 text-right font-medium">Rows</th>
                   <th className="px-3 py-2 font-medium">Sensor</th>
                   <th className="px-3 py-2 text-right font-medium">Missed</th>
+                  <th className="px-3 py-2 font-medium">Battery at end</th>
                   <th className="px-3 py-2 font-medium">Status</th>
                   <th className="px-3 py-2 font-medium">Patient</th>
                 </tr>
@@ -187,6 +232,9 @@ export function UploadWorkspace({ studyCodes }: { studyCodes: string[] }) {
                     item={it}
                     studyCodes={studyCodes}
                     onOpen={() => setSelectedId(it.id)}
+                    compareChecked={compareIds.includes(it.id)}
+                    compareDisabled={!it.analysis || (!compareIds.includes(it.id) && compareIds.length >= 3)}
+                    onToggleCompare={() => toggleCompare(it.id)}
                     onTag={(code) => update(it.id, { studyCode: code })}
                   />
                 ))}
@@ -215,18 +263,25 @@ function ItemRow({
   studyCodes,
   onOpen,
   onTag,
+  compareChecked,
+  compareDisabled,
+  onToggleCompare,
 }: {
   item: Item;
   studyCodes: string[];
   onOpen: () => void;
   onTag: (code: string) => void;
+  compareChecked: boolean;
+  compareDisabled: boolean;
+  onToggleCompare: () => void;
 }) {
   const rec = item.recording;
   if (!rec) {
     return (
       <tr className="border-t border-border">
+        <td />
         <td className="px-3 py-2 font-medium">{item.name}</td>
-        <td colSpan={7} className="px-3 py-2">
+        <td colSpan={8} className="px-3 py-2">
           {item.status === "reading" ? (
             <div className="flex items-center gap-3">
               <div
@@ -252,6 +307,16 @@ function ItemRow({
   const issues = describeIssues(rec);
   return (
     <tr className="border-t border-border hover:bg-surface">
+      <td className="px-3 py-2">
+        <input
+          type="checkbox"
+          checked={compareChecked}
+          disabled={compareDisabled}
+          onChange={onToggleCompare}
+          aria-label={`Compare ${item.name}`}
+          title={item.analysis ? "Select to compare" : "No breathing analysis (no sensor data)"}
+        />
+      </td>
       <td className="px-3 py-2 font-medium">
         <button type="button" onClick={onOpen} className="text-accent hover:underline">
           {item.name}
@@ -262,6 +327,9 @@ function ItemRow({
       <td className="tabular px-3 py-2 text-right">{rec.stats.row_count.toLocaleString()}</td>
       <td className="px-3 py-2">{rec.stats.sensor_rows > 0 ? "Yes" : "No"}</td>
       <td className="tabular px-3 py-2 text-right">{rec.stats.missed_samples}</td>
+      <td className="px-3 py-2">
+        <BatteryIcon battery={rec.battery} />
+      </td>
       <td className="px-3 py-2">
         <RecordingBadge badge={issues.badge} />
       </td>

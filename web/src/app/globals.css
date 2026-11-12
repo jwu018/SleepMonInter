@@ -25,6 +25,7 @@
   --status-neutral: #898781; /* no-signal minutes */
   --status-good: #0ca30c;
   --status-serious: #ec835a;
+  --annotation: #6250d6; /* clinician markers (violet) */
 }
 
 /* Follows the operating system's light/dark setting. */
@@ -45,6 +46,7 @@
     --chart-series-2: #d95926;
     --chart-series-3: #199e70;
     --chart-series-4: #c98500;
+    --annotation: #9085e9;
   }
 }
 
@@ -62,6 +64,7 @@
   --color-status-neutral: var(--status-neutral);
   --color-status-good: var(--status-good);
   --color-status-serious: var(--status-serious);
+  --color-annotation: var(--annotation);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

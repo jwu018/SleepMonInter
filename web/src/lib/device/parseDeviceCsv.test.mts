@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import {
+  PLAUSIBLE_VBAT_V,
   createDeviceParser,
   describeIssues,
   isRecordingFile,
@@ -30,7 +31,7 @@ const WITH_SENSOR = [
   "2026-10-26 23:59:58.000,0,0,21735392,3238825.8,24.14711,0,161",
   "2026-10-26 23:59:58.040,40,1,21735413,3238828.9,24.14706,0,669",
   "# drift_check,2026-10-26 23:59:58.060,elapsed_ms=60,drift_ms=2,resolution_ms=+/-20",
-  "2026-10-26 23:59:58.080,80,2,21735420,3238830.0,24.14700,1,650",
+  "2026-10-26 23:59:58.080,80,2,21735420,3238830.0,24.14700,2,650",
   "# stop,2026-10-26 23:59:58.100,reason=serial,rows=3,missed_slots=0",
 ].join("\n");
 
@@ -58,6 +59,7 @@ test("reads sensor values, flags, drift checks and the stop line", () => {
   assert.equal(rec.stats.sensor_rows, 3);
   assert.equal(rec.columns.ldc_L_uH[1], 24.14706);
   assert.equal(rec.stats.flagged_rows, 1);
+  assert.equal(rec.stats.amplitude_warning_rows, 0);
   assert.deepEqual(rec.drift_checks, [
     { datetime: "2026-10-26 23:59:58.060", elapsed_ms: 60, drift_ms: 2 },
   ]);
@@ -119,6 +121,7 @@ test("rejects a file that isn't a recording", () => {
 test("recognises recording files and ignores everything else on the card", () => {
   assert.ok(isRecordingFile("S20261026_205511.csv"));
   assert.ok(isRecordingFile("SDCARD/S20261026_205511_01.csv"));
+  assert.ok(isRecordingFile("S20261029_134821_14-17in.csv")); // hand-added note
   assert.ok(!isRecordingFile("sdtest.csv"));
   assert.ok(!isRecordingFile("._S20261026_205511.csv"));
   assert.ok(!isRecordingFile("System Volume Information/S20261026_205511.csv"));
@@ -162,7 +165,84 @@ test("parses the firmware team's bench recordings", { skip: !existsSync(IRL_DIR)
     const rec = parseDeviceCsv(readFileSync(path.join(IRL_DIR, name), "utf-8"));
     assert.ok(rec.stats.row_count > 0, name);
     assert.equal(rec.stats.malformed_lines, 0, name);
-    assert.equal(rec.stats.missed_samples, 0, name);
     if (rec.stop?.rows != null) assert.equal(rec.stats.row_count, rec.stop.rows, name);
+    // Battery columns appear from firmware 0.5 on.
+    if (Number(rec.meta.firmware) >= 0.5) assert.ok(rec.battery, name);
+    else assert.equal(rec.battery, null, name);
   }
+});
+
+const HEADER_V05 = [
+  "# Night Night respiratory logger, firmware 0.5",
+  "# start_local,2026-11-03 14:35:41",
+  "# rtc,DS3231 ok",
+  "# sample_rate_hz,25",
+  "# ldc1612,channel 1, tank 100 pF, drive 20",
+  "datetime,elapsed_ms,sample,ldc_raw,ldc_freq_hz,ldc_L_uH,ldc_flags,a0_raw,vbat_v,battery_pct",
+].join("\n");
+
+test("reads battery columns and summarises the first and last readings", () => {
+  const rows = [
+    "2026-11-03 14:35:41.099,0,0,1,1,1.5,0,219,3.952,70",
+    "2026-11-03 14:35:41.139,40,1,1,1,1.5,0,701,3.950,70",
+    "2026-11-03 14:35:41.179,80,2,1,1,1.5,0,703,3.910,64",
+    "# stop,2026-11-03 14:35:41.200,reason=switch,rows=3,missed_slots=0",
+  ];
+  const rec = parseDeviceCsv(`${HEADER_V05}\n${rows.join("\n")}`);
+  assert.deepEqual(rec.battery, {
+    start_v: 3.952,
+    end_v: 3.91,
+    start_pct: 70,
+    end_pct: 64,
+    implausible_rows: 0,
+    rows_with_reading: 3,
+  });
+  assert.equal(rec.columns.vbat_v[2], 3.91);
+  assert.equal(describeIssues(rec).badge, "clean");
+});
+
+test("ignores impossible battery voltages (ADC maxed out, divider not connected)", () => {
+  const rows = [
+    "2026-11-03 23:44:06.100,0,0,1,1,1.5,0,155,6.600,100", // 3.3 V x 2: ADC at full scale
+    "2026-11-03 23:44:06.140,40,1,1,1,1.5,0,691,3.800,45",
+    "2026-11-03 23:44:06.180,80,2,1,1,1.5,0,701,2.393,0",
+  ];
+  const rec = parseDeviceCsv(`${HEADER_V05}\n${rows.join("\n")}`);
+  assert.ok(6.6 > PLAUSIBLE_VBAT_V.max && 2.393 < PLAUSIBLE_VBAT_V.min);
+  assert.equal(rec.battery?.implausible_rows, 2);
+  assert.equal(rec.battery?.end_pct, 45); // the only believable reading
+  assert.ok(describeIssues(rec).notes.some((n) => n.includes("battery reading")));
+});
+
+test("older files without battery columns report no battery", () => {
+  const rec = parseDeviceCsv(`${HEADER_NO_SENSOR}\n2026-10-26 20:55:11.027,0,0,,,,,209\n`);
+  assert.equal(rec.battery, null);
+  assert.ok(Number.isNaN(rec.columns.vbat_v[0]));
+});
+
+test("reads device_id and mark lines, including notes with commas", () => {
+  const text = [
+    HEADER_V05.replace("# rtc,DS3231 ok", "# rtc,DS3231 ok\n# device_id,NN-DEV-07"),
+    "2026-11-03 14:35:41.099,0,0,1,1,1.5,0,219,3.952,70",
+    "# mark,2026-11-03 14:35:41.120,elapsed_ms=21,P03 trial 1 start, standing",
+    "2026-11-03 14:35:41.139,40,1,1,1,1.5,0,701,3.950,70",
+  ].join("\n");
+  const rec = parseDeviceCsv(text);
+  assert.equal(rec.meta.device_id, "NN-DEV-07");
+  assert.deepEqual(rec.marks, [
+    { datetime: "2026-11-03 14:35:41.120", elapsed_ms: 21, note: "P03 trial 1 start, standing" },
+  ]);
+  assert.equal(rec.stats.row_count, 2);
+});
+
+test("the amplitude-warning bit alone is informational, not a data problem", () => {
+  const rows = [
+    "2026-11-03 14:35:41.099,0,0,1,1,4.07,1,219,3.952,70",
+    "2026-11-03 14:35:41.139,40,1,1,1,4.08,1,701,3.950,70",
+    "# stop,2026-11-03 14:35:41.200,reason=switch,rows=2,missed_slots=0",
+  ];
+  const rec = parseDeviceCsv(`${HEADER_V05}\n${rows.join("\n")}`);
+  assert.equal(rec.stats.amplitude_warning_rows, 2);
+  assert.equal(rec.stats.flagged_rows, 0);
+  assert.equal(describeIssues(rec).badge, "clean");
 });

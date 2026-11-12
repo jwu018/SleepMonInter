@@ -17,6 +17,7 @@ export interface ChartTheme {
   series: [string, string, string, string];
   warning: string;
   neutral: string;
+  annotation: string;
 }
 
 /** Read the color tokens from globals.css (canvas drawing can't use CSS variables directly). */
@@ -30,6 +31,7 @@ export function readChartTheme(): ChartTheme {
     series: [v("--chart-series-1"), v("--chart-series-2"), v("--chart-series-3"), v("--chart-series-4")],
     warning: v("--status-warning"),
     neutral: v("--status-neutral"),
+    annotation: v("--annotation"),
   };
 }
 

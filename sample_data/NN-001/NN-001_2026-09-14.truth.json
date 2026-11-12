@@ -2,6 +2,7 @@
  "truth_format": 1,
  "source_file": "NN-001_2026-09-14.csv",
  "start_utc": "2026-09-14T02:22:00Z",
+ "start_local": "2026-09-13 22:22:00",
  "profile": "stable",
  "seed": 100,
  "duration_s": 27900.0,
@@ -1421,7 +1422,6 @@
    "good",
    "good",
    "good",
-   "good",
    "poor",
    "good",
    "good",
@@ -1432,43 +1432,7 @@
    "good",
    "good",
    "good",
-   "good",
-   "good",
    "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "good",
    "good",
    "good",
@@ -1560,16 +1524,6 @@
    "good",
    "good",
    "good",
-   "poor",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
    "good",
    "good",
    "good",
@@ -1585,7 +1539,14 @@
    "good",
    "good",
    "good",
-   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "poor",
    "good",
    "good",
@@ -1596,36 +1557,16 @@
    "good",
    "good",
    "good",
+   "poor",
+   "good",
+   "poor",
    "good",
    "good",
    "good",
    "good",
    "good",
    "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
+   "poor",
    "good",
    "good",
    "good",
@@ -1682,6 +1623,48 @@
    "good",
    "good",
    "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
    "good",
    "good",
    "good",
@@ -1722,10 +1705,7 @@
    "good",
    "good",
    "good",
-   "good",
-   "good",
-   "good",
-   "good",
+   "poor",
    "good",
    "good",
    "good",
@@ -1776,12 +1756,33 @@
    "good",
    "good",
    "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "poor",
    "good",
    "good",
    "good",
    "good",
    "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
    "good",
    "good",
    "poor",
@@ -1815,28 +1816,6 @@
    "good",
    "good",
    "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "good",
    "good",
    "good",
@@ -1857,11 +1836,33 @@
    "good",
    "good",
    "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "poor",
-   "good",
-   "good",
-   "good",
-   "good",
    "good",
    "good",
    "good",
@@ -1883,13 +1884,13 @@
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 876400,
-   "end_ms": 885750
+   "start_ms": 828880,
+   "end_ms": 833720
   },
   {
    "kind": "artifact_spike",
-   "start_ms": 1614100,
-   "end_ms": 1614150
+   "start_ms": 1405800,
+   "end_ms": 1405880
   },
   {
    "kind": "pause",
@@ -1902,19 +1903,14 @@
    "end_ms": 2484787
   },
   {
-   "kind": "baseline_shift",
-   "start_ms": 2363000,
-   "end_ms": 2363050
+   "kind": "artifact_burst",
+   "start_ms": 2330000,
+   "end_ms": 2333200
   },
   {
    "kind": "shallow",
    "start_ms": 3672990,
    "end_ms": 3864162
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 4520500,
-   "end_ms": 4520650
   },
   {
    "kind": "pause",
@@ -1927,34 +1923,34 @@
    "end_ms": 7775126
   },
   {
+   "kind": "artifact_spike",
+   "start_ms": 8329080,
+   "end_ms": 8329160
+  },
+  {
    "kind": "pause",
    "start_ms": 8455183,
    "end_ms": 8471979
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 9153150,
-   "end_ms": 9156950
-  },
-  {
    "kind": "artifact_spike",
-   "start_ms": 9262450,
-   "end_ms": 9262600
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 9682000,
-   "end_ms": 9682100
+   "start_ms": 8911840,
+   "end_ms": 8911880
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 10661250,
-   "end_ms": 10667200
+   "start_ms": 9013680,
+   "end_ms": 9019280
+  },
+  {
+   "kind": "baseline_shift",
+   "start_ms": 9424880,
+   "end_ms": 9424920
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 10683900,
-   "end_ms": 10687150
+   "start_ms": 10817000,
+   "end_ms": 10824080
   },
   {
    "kind": "shallow",
@@ -1967,6 +1963,11 @@
    "end_ms": 12345871
   },
   {
+   "kind": "artifact_burst",
+   "start_ms": 12853280,
+   "end_ms": 12860200
+  },
+  {
    "kind": "pause",
    "start_ms": 13012193,
    "end_ms": 13027245
@@ -1977,14 +1978,24 @@
    "end_ms": 14008397
   },
   {
-   "kind": "artifact_spike",
-   "start_ms": 14444350,
-   "end_ms": 14444500
+   "kind": "artifact_burst",
+   "start_ms": 14224320,
+   "end_ms": 14226520
   },
   {
    "kind": "baseline_shift",
-   "start_ms": 16689900,
-   "end_ms": 16689950
+   "start_ms": 14630160,
+   "end_ms": 14630200
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 15297720,
+   "end_ms": 15297840
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 15606840,
+   "end_ms": 15613000
   },
   {
    "kind": "shallow",
@@ -1992,9 +2003,19 @@
    "end_ms": 17593211
   },
   {
+   "kind": "artifact_burst",
+   "start_ms": 17791680,
+   "end_ms": 17799600
+  },
+  {
    "kind": "shallow",
    "start_ms": 18305665,
    "end_ms": 18486795
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 19866160,
+   "end_ms": 19875800
   },
   {
    "kind": "pause",
@@ -2002,14 +2023,14 @@
    "end_ms": 20886256
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 21159050,
-   "end_ms": 21161700
+   "kind": "artifact_spike",
+   "start_ms": 21361520,
+   "end_ms": 21361560
   },
   {
    "kind": "baseline_shift",
-   "start_ms": 22107150,
-   "end_ms": 22107200
+   "start_ms": 22405440,
+   "end_ms": 22405480
   },
   {
    "kind": "no_signal",
@@ -2022,19 +2043,14 @@
    "end_ms": 23551620
   },
   {
-   "kind": "baseline_shift",
-   "start_ms": 24434400,
-   "end_ms": 24434450
-  },
-  {
-   "kind": "baseline_shift",
-   "start_ms": 26427050,
-   "end_ms": 26427100
+   "kind": "artifact_burst",
+   "start_ms": 25106520,
+   "end_ms": 25114160
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 26958750,
-   "end_ms": 26962300
+   "start_ms": 27200400,
+   "end_ms": 27210080
   }
  ]
 }

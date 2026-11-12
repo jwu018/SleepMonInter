@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { NightTrends } from "@/components/charts/NightTrends";
+import { ReportTrendsWithNotes } from "@/components/annotations/ReportTrendsWithNotes";
 import { LocalTime } from "@/components/LocalTime";
 import { PrintButton } from "@/components/PrintButton";
 import { BlockSkeleton } from "@/components/Skeleton";
@@ -71,7 +71,7 @@ async function Report({ params }: { params: PageProps<"/recordings/[recordingId]
         </tbody>
       </table>
 
-      <NightTrends startUtc={rec.start_utc} metrics={rec.metrics} height={150} />
+      <ReportTrendsWithNotes recordingId={rec.recording_id} startUtc={rec.start_utc} metrics={rec.metrics} />
 
       <footer className="border-t border-border pt-2 text-xs text-muted">
         Prototype: synthetic data only, not for clinical use. Amplitude is relative to this

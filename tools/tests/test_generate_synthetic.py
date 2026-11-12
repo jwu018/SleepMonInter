@@ -6,24 +6,23 @@ from pathlib import Path
 
 import numpy as np
 
+from device_csv import read_device_csv
 from generate_synthetic import (
     PROFILES,
     Event,
     compute_ground_truth,
+    ldc_columns,
+    lipo_percent,
     main,
     minute_quality,
     simulate_night,
     truth_path_for,
 )
-from plot_recording import read_recording
 
-REQUIRED_HEADER_KEYS = {
-    "night_night_format",
-    "device_id",
-    "firmware",
-    "start_utc",
-    "sample_period_ms",
-}
+HEADER_KEYS = {"start_local", "rtc", "sample_rate_hz", "ldc1612", "device_id"}
+COLUMNS = (
+    "datetime,elapsed_ms,sample,ldc_raw,ldc_freq_hz,ldc_L_uH,ldc_flags,a0_raw,vbat_v,battery_pct"
+)
 
 
 def generate(tmp_path: Path, *args: str) -> Path:
@@ -33,32 +32,37 @@ def generate(tmp_path: Path, *args: str) -> Path:
     return out
 
 
-def test_header_and_columns_match_format(tmp_path: Path) -> None:
-    rec = read_recording(generate(tmp_path))
-    assert REQUIRED_HEADER_KEYS <= rec.header.keys()
-    assert rec.header["sample_period_ms"] == "50"
-    assert rec.header["start_utc"].endswith("Z")
+def test_file_matches_the_device_format(tmp_path: Path) -> None:
+    path = generate(tmp_path, "--start-utc", "2026-10-01T02:30:00Z")
+    rec = read_device_csv(path)
+    assert rec.firmware == "0.5"
+    assert HEADER_KEYS <= rec.header.keys()
+    assert rec.header["sample_rate_hz"] == "25"
+    assert rec.header["start_local"] == "2026-09-30 22:30:00"  # UTC-4 by default
+    assert rec.stop is not None and rec.stop["rows"] == str(len(rec.elapsed_s))
 
-    lines = generate(tmp_path).read_text(encoding="utf-8").splitlines()
+    lines = path.read_text(encoding="utf-8").splitlines()
     first_data_row = next(i for i, line in enumerate(lines) if not line.startswith("#"))
-    assert lines[first_data_row] == "timestamp_ms,raw_value,battery_mv"
+    assert lines[first_data_row] == COLUMNS
+    assert lines[first_data_row + 1].startswith("2026-09-30 22:30:00.000,0,0,")
 
 
-def test_timestamps_step_by_50_ms_without_gaps() -> None:
+def test_samples_every_40_ms_without_gaps() -> None:
     no_gaps = replace(PROFILES["stable"], gaps_per_hour=0)
     night = simulate_night(no_gaps, 600, np.random.default_rng(1))
     assert night.timestamp_ms[0] == 0
-    assert np.all(np.diff(night.timestamp_ms) == 50)
+    assert np.all(np.diff(night.timestamp_ms) == 40)
+    assert np.all(np.diff(night.sample_idx) == 1)
 
 
-def test_gaps_show_up_as_timestamp_jumps_over_1_s() -> None:
+def test_gaps_show_up_as_time_and_sample_jumps() -> None:
     many_gaps = replace(PROFILES["stable"], gaps_per_hour=20)
     night = simulate_night(many_gaps, 1800, np.random.default_rng(2))
     diffs = np.diff(night.timestamp_ms)
     assert np.all(diffs > 0), "timestamps must stay strictly increasing"
-    gap_events = [e for e in night.events if e.kind == "data_gap"]
-    assert gap_events, "test setup should produce at least one gap"
+    assert [e for e in night.events if e.kind == "data_gap"], "setup should produce a gap"
     assert np.count_nonzero(diffs > 1000) >= 1
+    assert np.count_nonzero(np.diff(night.sample_idx) > 1) >= 1  # the sample counter jumps too
 
 
 def test_same_seed_gives_identical_file(tmp_path: Path) -> None:
@@ -77,19 +81,28 @@ def test_respiratory_rate_is_plausible_for_every_profile() -> None:
         assert 12 <= np.median(rr_bpm) <= 28, name
 
 
-def test_battery_logged_once_per_minute_and_declines() -> None:
+def test_inductance_is_in_the_real_belts_range() -> None:
+    night = simulate_night(PROFILES["stable"], 600, np.random.default_rng(4))
+    assert 3.5 < np.median(night.L_uH) < 4.5
+    # A typical breath swings L by a few hundredths of a uH, like the team's belt.
+    assert 0.02 < np.percentile(night.L_uH, 95) - np.percentile(night.L_uH, 5) < 0.3
+
+
+def test_sensor_columns_follow_lc_tank_physics() -> None:
+    freq_hz, raw = ldc_columns(np.array([4.07657]))
+    # Checked against a real row: 4.07657 uH with a 100 pF tank -> ~7.88 MHz.
+    assert abs(freq_hz[0] - 7.883e6) < 0.01e6
+    assert raw[0] == round(freq_hz[0] / 40e6 * 2**28)
+
+
+def test_battery_updates_every_10_s_and_declines() -> None:
     night = simulate_night(PROFILES["stable"], 2 * 3600, np.random.default_rng(4))
-    logged = ~np.isnan(night.battery_mv)
-    assert np.all(night.timestamp_ms[logged] % 60_000 == 0)
-    battery = night.battery_mv[logged]
-    assert battery[-1] < battery[0] - 50
-    assert np.all((battery > 3300) & (battery < 4250))
-
-
-def test_raw_values_are_unsigned_integers() -> None:
-    night = simulate_night(PROFILES["noisy"], 1800, np.random.default_rng(5))
-    assert night.raw_value.dtype.kind == "i"
-    assert night.raw_value.min() >= 0
+    v = night.vbat_v
+    assert len(np.unique(v[:250])) == 1  # first 10 s: one reading, held
+    assert v[-1] < v[0] - 0.05
+    assert np.all((v > 3.3) & (v < 4.25))
+    assert np.array_equal(night.battery_pct, lipo_percent(v))
+    assert lipo_percent(np.array([4.20, 3.27, 3.80]))[2] == 40  # firmware table: 3.80 V = 40%
 
 
 # --- Ground truth ---------------------------------------------------------------------

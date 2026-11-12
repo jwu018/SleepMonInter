@@ -1,18 +1,22 @@
 """Generate a synthetic Night Night overnight recording.
 
-The output follows docs/FILE_FORMAT.md exactly, so the rest of the system can't tell
-a synthetic file from a real one (apart from the extra `synthetic=true` header key).
+The output uses the real logger's CSV format (docs/DEVICE_FORMAT.md, firmware 0.5), so the
+dashboard and signal processing treat synthetic and real files the same way. Extra header
+lines (`# synthetic,true`, `# profile,...`, `# seed,...`) mark it as synthetic.
 
-How the signal is built (all in "counts", the raw unit of the RIP front end):
+How the signal is built (in microhenries, the unit of the belt's inductance `ldc_L_uH`):
 
-    raw_value = offset + breathing + baseline wander + sensor noise + artifacts
+    L = resting inductance + breathing + baseline wander + sensor noise + artifacts
+
+The sensor's frequency and raw count columns are then derived from L with the same LC-tank
+physics the LDC1612 uses, and the battery columns follow a LiPo discharge curve.
 
 1. A breath schedule is built one breath at a time. Each breath's length comes from a
    slowly drifting target respiratory rate plus random breath-to-breath jitter, and
    pauses (apneas) are inserted between breaths.
 2. Each breath gets an amplitude (depth): slow variation, an overnight trend, and
    occasional stretches of shallow breathing.
-3. The schedule is turned into a waveform at 20 Hz using a smooth rise (inhale) and
+3. The schedule is turned into a waveform at 25 Hz using a smooth rise (inhale) and
    fall (exhale) per breath.
 4. Wander, noise, motion artifacts and "band loose" (no-signal) stretches are added,
    then a few data gaps are cut out of the timestamps.
@@ -31,20 +35,30 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import numpy as np
 
-# --- Fixed by the file format / device -------------------------------------------------
-FORMAT_VERSION = 1
-FIRMWARE_VERSION = "0.1.0"
-SAMPLE_PERIOD_MS = 50  # 20 Hz
-BATTERY_LOG_PERIOD_MS = 60_000  # battery_mv is written once per minute
+# --- Fixed by the device / firmware (see docs/DEVICE_FORMAT.md) ---------------------------
+FIRMWARE_VERSION = "0.5"
+SAMPLE_RATE_HZ = 25
+SAMPLE_PERIOD_MS = 1000 // SAMPLE_RATE_HZ  # 40 ms
+BATTERY_UPDATE_MS = 10_000  # the firmware re-measures the battery every 10 s
+LDC_CHANNEL = 1  # external coil / RIP belt
+TANK_PF = 100.0  # capacitance across the coil
+LDC_FREF_HZ = 40e6  # LDC1612 reference clock: raw = f_sensor / f_ref * 2^28
+# The firmware's LiPo charge-vs-voltage table, 0% to 100% in 5% steps.
+LIPO_CURVE_V = np.array(
+    [3.27, 3.61, 3.69, 3.71, 3.73, 3.75, 3.77, 3.79, 3.80, 3.82, 3.84,
+     3.85, 3.87, 3.91, 3.95, 3.98, 4.02, 4.08, 4.11, 4.15, 4.20]
+)  # fmt: skip
 
 # --- Signal model constants -------------------------------------------------------------
-RAW_OFFSET_COUNTS = 50_000  # resting value of the front end; only changes matter
-BREATH_AMPLITUDE_COUNTS = 300.0  # peak-to-trough of a typical breath at the start of the night
+# Measured on the team's belt (Oct-Nov 2026 bench recordings): resting L around 4.1 uH and a
+# normal breath swinging it by roughly 0.06 uH.
+RESTING_L_UH = (3.9, 4.3)  # drawn per night
+BREATH_AMPLITUDE_UH = 0.06  # peak-to-trough of a typical breath at the start of the night
 INHALE_FRACTION = 0.4  # inhaling takes ~40% of a breath cycle, exhaling ~60%
 MAX_RR_BPM = 30.0
 MIN_RR_BPM = 8.0
@@ -132,7 +146,7 @@ class BreathSchedule:
 
     start_s: np.ndarray
     duration_s: np.ndarray
-    amplitude_counts: np.ndarray  # 0 for pauses
+    amplitude_uh: np.ndarray  # 0 for pauses
     is_breath: np.ndarray  # bool
 
 
@@ -140,9 +154,12 @@ class BreathSchedule:
 class SyntheticNight:
     """Everything the generator produced, before it's written to disk."""
 
-    timestamp_ms: np.ndarray  # int64, after data gaps are removed
-    raw_value: np.ndarray  # int64, same length as timestamp_ms
-    battery_mv: np.ndarray  # float64, NaN on rows where the battery isn't logged
+    timestamp_ms: np.ndarray  # int64 elapsed_ms, after data gaps are removed
+    sample_idx: np.ndarray  # int64 scheduled sample index (jumps where samples were lost)
+    L_uH: np.ndarray  # float64 belt inductance
+    vbat_v: np.ndarray  # float64 battery voltage (held between 10 s updates)
+    battery_pct: np.ndarray  # int64, from the firmware's LiPo curve
+    a0_raw: np.ndarray  # int64, the unused floating analog pin (noise)
     schedule: BreathSchedule
     events: list[Event] = field(default_factory=list)
 
@@ -212,7 +229,7 @@ def build_breath_schedule(
         + profile.rr_wander_bpm * slow_wave(rng, grid_s, (20 * 60, 90 * 60))
     )
     amp_target = (
-        BREATH_AMPLITUDE_COUNTS
+        BREATH_AMPLITUDE_UH
         * (1 + (profile.amplitude_end - 1) * progress)
         * (1 + 0.1 * slow_wave(rng, grid_s, (10 * 60, 40 * 60)))
     )
@@ -263,7 +280,7 @@ def build_breath_schedule(
     return BreathSchedule(
         start_s=np.array(starts),
         duration_s=np.array(durations),
-        amplitude_counts=np.array(amplitudes),
+        amplitude_uh=np.array(amplitudes),
         is_breath=np.array(is_breath),
     )
 
@@ -275,7 +292,7 @@ def render_breathing(schedule: BreathSchedule, t_s: np.ndarray) -> np.ndarray:
     phase = (t_s - schedule.start_s[segment]) / schedule.duration_s[segment]
     phase = np.clip(phase, 0.0, 1.0)
     shape = np.where(schedule.is_breath[segment], breath_shape(phase), 0.0)
-    return shape * schedule.amplitude_counts[segment]
+    return shape * schedule.amplitude_uh[segment]
 
 
 def add_no_signal(
@@ -312,32 +329,54 @@ def add_artifacts(
         if kind == "artifact_spike":
             # A jolt lasting 1-3 samples, e.g. bumping the electronics.
             width = int(rng.integers(1, 4))
-            signal[i0 : i0 + width] += (
-                rng.choice([-1, 1]) * rng.uniform(3, 8) * BREATH_AMPLITUDE_COUNTS
-            )
+            signal[i0 : i0 + width] += rng.choice([-1, 1]) * rng.uniform(3, 8) * BREATH_AMPLITUDE_UH
             end_ms = start_ms + width * SAMPLE_PERIOD_MS
         elif kind == "artifact_burst":
             # Rolling over: several seconds of large, fairly slow random movement.
             width = int(rng.uniform(2, 10) * 1000 / SAMPLE_PERIOD_MS)
             width = min(width, n - i0)
-            movement = rng.normal(0, rng.uniform(1, 3) * BREATH_AMPLITUDE_COUNTS, width)
+            movement = rng.normal(0, rng.uniform(1, 3) * BREATH_AMPLITUDE_UH, width)
             # A short moving average makes the movement smoother than white noise.
             movement = np.convolve(movement, np.ones(5) / 5, mode="same")
             signal[i0 : i0 + width] += movement
             end_ms = start_ms + width * SAMPLE_PERIOD_MS
         else:
             # The band shifts position and settles at a new resting level for the rest of the night.
-            signal[i0:] += rng.uniform(-3, 3) * BREATH_AMPLITUDE_COUNTS
+            signal[i0:] += rng.uniform(-3, 3) * BREATH_AMPLITUDE_UH
             end_ms = start_ms + SAMPLE_PERIOD_MS
 
         events.append(Event(str(kind), start_ms, end_ms))
 
 
 def battery_curve(t_s: np.ndarray, rng: np.random.Generator) -> np.ndarray:
-    """Battery voltage in mV. Falls slowly at first, then faster as the cell empties."""
-    hours = t_s / 3600
-    start_mv = rng.uniform(4100, 4180)
-    return start_mv - 45 * hours - 3 * hours**2 + rng.normal(0, 2, size=len(t_s))
+    """Battery voltage in V, re-measured every 10 s like the firmware (held in between).
+
+    Falls slowly at first, then faster as the cell empties.
+    """
+    held_t_s = (t_s * 1000 // BATTERY_UPDATE_MS) * BATTERY_UPDATE_MS / 1000
+    hours = held_t_s / 3600
+    start_v = rng.uniform(4.10, 4.18)
+    noise = rng.normal(0, 0.002, size=int(held_t_s[-1] * 1000 // BATTERY_UPDATE_MS) + 1)
+    return (
+        start_v
+        - 0.035 * hours
+        - 0.002 * hours**2
+        + noise[(held_t_s * 1000 // BATTERY_UPDATE_MS).astype(int)]
+    )
+
+
+def lipo_percent(v: np.ndarray) -> np.ndarray:
+    """Charge estimate from voltage, exactly as the firmware computes it (0-100, whole %)."""
+    pct = np.interp(v, LIPO_CURVE_V, np.arange(0, 101, 5))
+    return np.rint(pct).astype(np.int64)
+
+
+def ldc_columns(L_uH: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Sensor frequency (Hz) and raw count for each inductance, from the LC-tank formula
+    f = 1 / (2*pi*sqrt(L*C))."""
+    freq_hz = 1.0 / (2 * np.pi * np.sqrt(L_uH * 1e-6 * TANK_PF * 1e-12))
+    raw = np.rint(freq_hz / LDC_FREF_HZ * 2**28).astype(np.int64)
+    return freq_hz, raw
 
 
 def make_gap_mask(
@@ -371,24 +410,27 @@ def simulate_night(profile: Profile, duration_s: float, rng: np.random.Generator
     breathing = render_breathing(schedule, t_s)
     add_no_signal(breathing, profile, duration_s, rng, events)
 
-    wander = profile.wander_rel * BREATH_AMPLITUDE_COUNTS * slow_wave(rng, t_s, (5 * 60, 30 * 60))
-    noise = rng.normal(0, profile.noise_rel * BREATH_AMPLITUDE_COUNTS, n_samples)
+    wander = profile.wander_rel * BREATH_AMPLITUDE_UH * slow_wave(rng, t_s, (5 * 60, 30 * 60))
+    noise = rng.normal(0, profile.noise_rel * BREATH_AMPLITUDE_UH, n_samples)
     signal = breathing + wander + noise
     add_artifacts(signal, profile, duration_s, rng, events)
 
-    # Quantize to unsigned integer counts, as the hardware would.
-    raw_value = np.clip(np.rint(RAW_OFFSET_COUNTS + signal), 0, None).astype(np.int64)
+    # Inductance can't go near zero; clamp in case a huge artifact pushes it there.
+    L_uH = np.clip(rng.uniform(*RESTING_L_UH) + signal, 0.5, None)
 
-    battery_mv = battery_curve(t_s, rng)
-    battery_mv[timestamp_ms % BATTERY_LOG_PERIOD_MS != 0] = np.nan
+    vbat_v = battery_curve(t_s, rng)
+    a0_raw = rng.integers(600, 760, size=n_samples)  # floating pin, as on the real board
 
     keep = make_gap_mask(n_samples, profile, duration_s, rng, events)
     events.sort(key=lambda e: e.start_ms)
 
     return SyntheticNight(
         timestamp_ms=timestamp_ms[keep],
-        raw_value=raw_value[keep],
-        battery_mv=battery_mv[keep],
+        sample_idx=np.arange(n_samples, dtype=np.int64)[keep],
+        L_uH=L_uH[keep],
+        vbat_v=vbat_v[keep],
+        battery_pct=lipo_percent(vbat_v[keep]),
+        a0_raw=a0_raw[keep],
         schedule=schedule,
         events=events,
     )
@@ -457,7 +499,7 @@ def compute_ground_truth(night: SyntheticNight, duration_s: float) -> dict[str, 
     # Relative amplitude: mean depth of the breaths starting in each minute,
     # divided by the median depth over the whole night.
     breath_start_s = schedule.start_s[schedule.is_breath]
-    breath_amp = schedule.amplitude_counts[schedule.is_breath]
+    breath_amp = schedule.amplitude_uh[schedule.is_breath]
     minute_of_breath = (breath_start_s // 60).astype(np.int64)
     in_range = minute_of_breath < n_minutes
     amp_sum = np.bincount(
@@ -487,6 +529,7 @@ def write_ground_truth(
     duration_s: float,
     source_file: str,
     start_utc: datetime,
+    start_local: datetime,
     profile: str,
     seed: int,
 ) -> None:
@@ -495,6 +538,7 @@ def write_ground_truth(
         "truth_format": 1,
         "source_file": source_file,
         "start_utc": format_utc(start_utc),
+        "start_local": format_local(start_local),
         "profile": profile,
         "seed": seed,
         "duration_s": duration_s,
@@ -514,32 +558,65 @@ def format_utc(dt: datetime) -> str:
     return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def format_local(dt: datetime) -> str:
+    """The device's clock format: local wall time, no time zone."""
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
 def write_recording(
     night: SyntheticNight,
     path: Path,
     *,
     device_id: str,
-    start_utc: datetime,
+    start_local: datetime,
     extra_header: dict[str, str],
 ) -> None:
-    """Write `night` to `path` in the Night Night recording format."""
-    header = {
-        "night_night_format": str(FORMAT_VERSION),
-        "device_id": device_id,
-        "firmware": FIRMWARE_VERSION,
-        "start_utc": format_utc(start_utc),
-        "sample_period_ms": str(SAMPLE_PERIOD_MS),
-        **extra_header,
-    }
-    lines = [f"# {key}={value}" for key, value in header.items()]
-    lines.append("timestamp_ms,raw_value,battery_mv")
+    """Write `night` to `path` in the device CSV format (firmware 0.5)."""
+    lines = [
+        f"# Night Night respiratory logger, firmware {FIRMWARE_VERSION}",
+        f"# start_local,{format_local(start_local)}",
+        "# rtc,DS3231 ok",
+        f"# sample_rate_hz,{SAMPLE_RATE_HZ}",
+        f"# ldc1612,channel {LDC_CHANNEL}, tank {TANK_PF:.0f} pF, drive 20",
+        f"# device_id,{device_id}",
+        *(f"# {key},{value}" for key, value in extra_header.items()),
+        "datetime,elapsed_ms,sample,ldc_raw,ldc_freq_hz,ldc_L_uH,ldc_flags,a0_raw,vbat_v,battery_pct",
+    ]
 
-    battery = ["" if np.isnan(mv) else str(round(mv)) for mv in night.battery_mv.tolist()]
-    lines.extend(
-        f"{ts},{raw},{mv}"
-        for ts, raw, mv in zip(
-            night.timestamp_ms.tolist(), night.raw_value.tolist(), battery, strict=True
-        )
+    # Build each column as text with numpy (much faster than formatting 700k rows one by one).
+    # Clock times are plain arithmetic on the device's local wall time (no time zones).
+    base = np.datetime64(start_local.replace(tzinfo=None), "ms")
+    clock = np.datetime_as_string(base + night.timestamp_ms.astype("timedelta64[ms]"), unit="ms")
+    clock = np.char.replace(clock, "T", " ")
+    freq_hz, raw = ldc_columns(night.L_uH)
+    flags = "1"  # bit 0 (amplitude warning) is set on every row of the real belt recordings
+    rows = (
+        clock.astype(object)
+        + ","
+        + night.timestamp_ms.astype(str).astype(object)
+        + ","
+        + night.sample_idx.astype(str).astype(object)
+        + ","
+        + raw.astype(str).astype(object)
+        + ","
+        + np.char.mod("%.1f", freq_hz).astype(object)
+        + ","
+        + np.char.mod("%.5f", night.L_uH).astype(object)
+        + ","
+        + flags
+        + ","
+        + night.a0_raw.astype(str).astype(object)
+        + ","
+        + np.char.mod("%.3f", night.vbat_v).astype(object)
+        + ","
+        + night.battery_pct.astype(str).astype(object)
+    )
+    lines.extend(rows.tolist())
+
+    last_clock = clock[-1] if len(clock) else format_local(start_local)
+    missed = int(night.sample_idx[-1] + 1 - len(night.sample_idx)) if len(night.sample_idx) else 0
+    lines.append(
+        f"# stop,{last_clock},reason=synthetic,rows={len(night.timestamp_ms)},missed_slots={missed}"
     )
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -556,6 +633,11 @@ def parse_utc(text: str) -> datetime:
     return dt.astimezone(UTC)
 
 
+def to_device_local(start_utc: datetime, utc_offset_hours: float) -> datetime:
+    """The device clock shows local time with no zone; apply a fixed offset (e.g. -4 for EDT)."""
+    return (start_utc + timedelta(hours=utc_offset_hours)).replace(tzinfo=None)
+
+
 def truth_path_for(csv_path: Path) -> Path:
     """night.csv -> night.truth.json"""
     return csv_path.with_name(csv_path.stem + ".truth.json")
@@ -568,17 +650,19 @@ def generate_recording(
     seed: int,
     duration_hours: float,
     start_utc: datetime,
+    utc_offset_hours: float,
     device_id: str,
     out: Path,
 ) -> SyntheticNight:
     """Simulate one night and write both the recording CSV and its ground-truth JSON."""
     duration_s = duration_hours * 3600
     night = simulate_night(profile, duration_s, np.random.default_rng(seed))
+    start_local = to_device_local(start_utc, utc_offset_hours)
     write_recording(
         night,
         out,
         device_id=device_id,
-        start_utc=start_utc,
+        start_local=start_local,
         extra_header={"synthetic": "true", "profile": profile_name, "seed": str(seed)},
     )
     write_ground_truth(
@@ -587,6 +671,7 @@ def generate_recording(
         duration_s=duration_s,
         source_file=out.name,
         start_utc=start_utc,
+        start_local=start_local,
         profile=profile_name,
         seed=seed,
     )
@@ -595,7 +680,7 @@ def generate_recording(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Generate a synthetic Night Night recording (docs/FILE_FORMAT.md)."
+        description="Generate a synthetic Night Night recording (docs/DEVICE_FORMAT.md)."
     )
     parser.add_argument("--profile", choices=sorted(PROFILES), default="stable")
     parser.add_argument("--seed", type=int, default=0, help="same seed -> identical file")
@@ -605,6 +690,12 @@ def main(argv: list[str] | None = None) -> int:
         type=parse_utc,
         default=parse_utc("2026-10-01T02:30:00Z"),
         help="recording start in UTC (default: 2026-10-01T02:30:00Z, i.e. 10:30 pm US Eastern)",
+    )
+    parser.add_argument(
+        "--utc-offset-hours",
+        type=float,
+        default=-4.0,
+        help="device clock offset from UTC (default -4 = US Eastern daylight time)",
     )
     parser.add_argument("--device-id", default="NN-DEV-01")
     parser.add_argument("--out", type=Path, required=True, help="output .csv path")
@@ -619,6 +710,7 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
         duration_hours=args.duration_hours,
         start_utc=args.start_utc,
+        utc_offset_hours=args.utc_offset_hours,
         device_id=args.device_id,
         out=args.out,
     )

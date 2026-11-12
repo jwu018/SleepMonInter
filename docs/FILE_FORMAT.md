@@ -1,3 +1,6 @@
+> **Superseded (2026-11-05).** The synthetic generator now writes the real device format,
+> documented in `docs/DEVICE_FORMAT.md`. This older format is kept only for history.
+
 # Night Night recording file format (version 1)
 
 This is the contract between the device firmware and the software. The firmware writes one file per night to the SD card. The synthetic generator (`tools/generate_synthetic.py`) produces exactly this format, so real files should work without code changes.

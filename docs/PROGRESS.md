@@ -202,3 +202,136 @@ Newest entries at the bottom. One entry per checkpoint: what was done, decisions
 **Done**
 - `docs/HANDOFF.md`: a self-contained handoff for teammates and new Claude chats (status, routes and files, architecture, setup, decisions, gotchas, deploy steps, next steps). It contains no private details; it points to the private PRD for the full roadmap.
 - Annotation decisions: saved in the **browser (localStorage)** for the showcase, behind the data module, and moved to the database in Phase 3. The **author is the signed-in user's email**, automatically.
+
+## 2026-11-05 — Upload: logger battery indicator (firmware 0.5)
+
+**Done**
+- Parser reads the new `vbat_v` and `battery_pct` columns (NaN for older files) and produces a `battery` summary: first/last *plausible* reading (3.0–4.35 V), count of implausible rows. `null` when the file has no battery columns.
+- `BatteryIcon`: a battery outline filled green in proportion to the logger's `battery_pct` at the end of the recording, with the percentage written on top. Shown in the recordings list ("Battery at end") and, larger, in the recording detail view with the voltage, start %, % used and a low-battery note (< 20%).
+- Signal chart gains a "Battery voltage" channel.
+- Recording file names may now carry a hand-added note (`S20261029_134821_14-17in.csv` was previously ignored silently).
+- `docs/DEVICE_FORMAT.md` updated for firmware 0.5 (battery columns, `reason=switch`, `# mark` lines, renamed files).
+- Tests: 15 passing (3 new battery tests). tsc, eslint, build clean.
+
+**Decisions**
+- Show the firmware's own `battery_pct` rather than recomputing it, so dashboard and device agree.
+- Readings outside 3.0–4.35 V are ignored and reported: `S20261103_234406.csv` reads 6.600 V then 2.393 V, i.e. the ADC at full scale (A3 not seeing the divider) and then near zero; neither can be a LiPo powering the logger. That file shows "No valid reading".
+- Green fill per the user's request, at every charge level; low charge is flagged in text instead.
+
+**Deferred**
+- `# mark` lines (notes typed during recording) aren't displayed yet; natural input for the annotations feature.
+- Device ID still missing from the firmware.
+- Not clicked through in a browser by Claude (page requires login).
+
+## 2026-11-05 — Phase 2b (compare by clock time, clinician annotations) + generator switched to the device format
+
+**Done**
+- **Compare by clock time** (`lib/clockAxis.ts` + 3 tests): "Align by" toggle on the compare page. Clock mode puts nights on an "hours after noon" axis in the viewer's time zone, so 3 am lines up across nights; labels like "10 pm", "12 am".
+- **Clinician annotations** (`lib/annotations/`, `components/annotations/`, `charts/markerPlugin.ts`): click (moment) or drag (stretch) on the trend charts or the waveform; form with category + note (500 chars); author = signed-in email; saved in localStorage per recording; numbered violet markers on every chart; list with jump/edit/delete; included (markers + table) in the print report. Night view layout: battery panel moved above the charts, notes panel to the right of the charts.
+- **Device `# mark` lines** (notes typed over USB during recording) and a `# device_id` header are parsed and shown on the upload view (markers M1, M2… + list).
+- **Flag handling:** `ldc_flags` bit 1 (amplitude warning, set on every real belt row) is informational; only bits 2/4/8 count as bad readings.
+- **Synthetic generator now writes the device format** (firmware 0.5 layout, 25 Hz, `ldc_L_uH` ≈ 3.9–4.3 µH with ~0.06 µH breaths, LC-tank-consistent `ldc_freq_hz`/`ldc_raw`, `vbat_v` updated every 10 s + firmware LiPo `battery_pct`, `# stop` line, sample-index jumps at data gaps). Ground truth unchanged in structure (+ `start_local`).
+- New `tools/device_csv.py` (shared Python reader for any firmware version; ~2 s for an 8 h night). `plot_recording.py` and `build_static_data.py` use it. Web waveform is now inductance in µH (int16 steps of 0.1 nH, 12.5 Hz).
+- Regenerated sample set (666 MB of gitignored CSVs, ~10 min on this machine) and `web/data/` (8.4 MB).
+- Checks: tools ruff clean, pytest 14 passed; web tsc/eslint clean, `npm test` 20 passed, build OK.
+
+**Decisions**
+- User asked to complete everything up to the signal-processing phase in one go (steps not stopped at individual checkpoints) and to do **Phase 5 before the backend (3) and server upload (4)**, because Test 2 in Technical Memo 3 needs breathing-rate results.
+- Synthetic device clock = UTC−4 (all sample nights are in EDT); the truth file keeps `start_utc`, so the dashboard doesn't need a time-zone database.
+- Simulated battery eased to ~5% at 10 h (the design target), instead of empty at ~9 h.
+- `FILE_FORMAT.md` marked superseded.
+
+**Not tested by Claude**
+- The annotation and compare UI in a browser (login required). Logic is covered by tsc and unit tests for the clock axis and parser.
+
+**Deferred**
+- Uploaded recordings can't yet be compared or printed (only the demo patients can); Test 5 asks Dr. Elmallah to "overlap and print traces" (see the memo review).
+
+## 2026-11-05 — Phase 5 decisions (before starting)
+
+- **Option A:** the owner writes the processing in Python (`tools/processing/`, scipy); Claude later translates the finished algorithm to TypeScript for the dashboard, with a cross-check test keeping both versions in agreement.
+- **Test 2 protocol:** the firmware's on/off switch defines each trial: one file per trial, switch-on to switch-off (`reason=switch`). The switch is flipped by someone other than the volunteer. Hand counters and the algorithm count complete breaths over the whole file. Trials last at least 2.5 min (2 min of breathing plus the 10 s hold). Files are named with the participant/condition suffix.
+- Waiting for the owner's "go" for Step 1, and an answer on adding compare/print for uploads after Phase 5.
+
+## 2026-11-10 — Phase 5, Step 1: processing scaffold + Test 2 trial report
+
+**Done**
+- `tools/processing/` package:
+  - `load.py`: `load_trial()` (device CSV -> even 25 Hz grid using the scheduled `sample` index; lost samples = NaN; marks, stop reason, missed samples, file-name label) and `fill_short_gaps()`.
+  - `filters.py` (`remove_glitches`, `bandpass`), `breaths.py` (`Breaths`, `detect_breaths`), `metrics.py` (`count_complete_breaths`, `respiratory_rate_per_minute`, `relative_amplitude`, `find_pauses`): **owner writes these**. Signatures and docstrings describe the job; they raise NotImplementedError. `metrics.percent_error` (Appendix B) is provided.
+  - `pipeline.py` (`process_trial`), `debug_plot.py` (`python -m processing.debug_plot FILE`).
+- `tools/trial_report.py`: Test 2 table: one row per trial file, with algorithm breath count and rate, the two hand counts and their mean, Appendix B % error, a "meets 5%" flag, and validity notes (not stopped by the switch, < 150 s, missed samples, counters disagree by > 1, no sensor). `--make-counts-template` writes the sheet the counters fill in; `--out` writes a CSV for the memo.
+- `tests/test_processing.py`: 6 scaffolding tests pass; **14 target tests** marked `xfail(raises=NotImplementedError)`: glitch removal, zero-phase band-pass, breath detection, breath hold, whole-trial count within 5% (5 seeds), per-minute RR within 5% on 90% of minutes, relative amplitude ≈ 1, pause finder, complete-breath counting, real belt file ≈ 17/min.
+- scipy 1.18.1 pinned in `tools/requirements.txt` (pre-approved).
+- Checks: ruff clean; pytest 19 passed, 14 xfailed.
+
+**Decisions**
+- Error is computed on **whole-trial breath counts** (switch-on to switch-off), the same as rate error for a fixed duration.
+- The grid uses the scheduled `sample` index rather than `elapsed_ms`, because write times jitter (58/22 ms) while the schedule is exact.
+- User said **yes** to compare + print for uploaded recordings after Phase 5 (for Test 5).
+
+**Next**
+- Step 2 (owner writes `remove_glitches` and `bandpass`, Claude explains and reviews).
+
+## 2026-11-10 — Phase 5, Steps 2–4: processing algorithm (written by Claude at the owner's request)
+
+The owner asked Claude to write the core algorithm (CLAUDE.md §5 allows this on explicit request) and walk through it, because of time pressure.
+
+**Done**
+- `filters.remove_glitches`: absolute range 0.5–100 µH, plus "more than 0.5 µH from the 1 s rolling median" → NaN. The median keeps real steps.
+- `filters.bandpass`: Butterworth order 2, 0.1–1 Hz, zero-phase `sosfiltfilt`, each NaN-free run ≥ 10 s filtered separately, median removed first to reduce edge wobble.
+- `breaths.detect_breaths`: `find_peaks` on x and −x with distance = 1.5 s (refractory) and prominence = 0.2 × (p95 − p5) spread; peaks next to NaN dropped; strict trough/peak alternation (keep the more extreme of two in a row).
+- `metrics`: `count_complete_breaths` (peak with a trough on each side), `respiratory_rate_per_minute` (fractional "breaths so far" between troughs, minutes with ≥ 30 s coverage), `relative_amplitude` (peak − preceding trough, ÷ median), `find_pauses` (gap > 10 s between consecutive turning points).
+- `pipeline.process_trial(trim_start_s, trim_end_s)` counts complete breaths in the window only; `trial_report.py --trim-start/--trim-end`; `window_s` column.
+- Tests: 34 passed (all 14 former targets + trimming test). Real belt file: whole file 31 breaths (16.2/min, including ~2–3 fake "breaths" from the belt settling); with trim 10 s / 5 s: **27 breaths = 16.2/min**, matching the 27 visible breaths; median peak interval → 16.9/min (FFT 17.2).
+
+**Findings for the Test 2 protocol**
+- The first ~10 s (fastening/settling) and last ~5 s produce small fake turning points about as large as shallow breaths, so a threshold can't separate them. **Protocol: wait ~10 s after switch-on before the volunteer starts breathing normally; counters start counting at 10 s; run the report with `--trim-start 10 --trim-end 5`.**
+- Bench files with key/coil movement give meaningless "rates" (not breathing), as expected.
+
+**Next**
+- Step 5: port to TypeScript for uploads (breath markers, rate and amplitude, analyze-selection readout) + compare/print for uploads. Step 6: validation table across synthetic profiles.
+
+## 2026-11-10 — Phase 5, Step 5a: start-up transients + algorithm in the dashboard (uploads)
+
+**Done**
+- **Turn-on transients:** `remove_glitches` now also blanks *stuck* readings (identical values for > 0.5 s; a working 28-bit sensor never repeats exactly). Bench file `S20261103_143541` was stuck at 1970.216 µH for 61 s. `trial_report` flags trials with > 20% of readings removed ("sensor unreliable"). Minimum trial length is 160 s (10 s settling + 2 min + 10 s hold + margin). Python: 35 tests.
+- **TypeScript port** (`web/src/lib/processing/`): `dsp.ts` (median, nanPercentile, interpolateNaN, median filter, sosfilt/sosfiltfilt with scipy's padding and initial conditions, find_peaks with scipy's local-maxima → distance → prominence order) and `breathing.ts` (toGrid, fillShortGaps, removeGlitches, bandpass, detectBreaths, countCompleteBreaths, ratePerMinute, relativeAmplitude, findPauses, analyzeRecording). Filter coefficients for 5–100 Hz are generated by `tools/export_web_processing.py` (scipy design; TS only applies them).
+- **Cross-check test** (`breathing.test.mts`): the TS pipeline on a Python-generated fixture (180 s, artifacts, pauses, a 1970 µH glitch) reproduces Python's peaks/troughs exactly, filtered values to 1e-9, trimmed count, per-minute rates, median amplitude and pauses. Web: 26 tests.
+- **Upload UI:** the worker runs the analysis after parsing (8 h night: parse 1.5 s + analysis 2.7 s). The recording view has a **Breathing** section: trim inputs (default 10 s / 5 s), complete breaths + rate in the counting window, pauses > 10 s, % readings removed, and a **drag-to-count selection readout**. The trace gets a "Breathing (filtered)" channel (default) with peak/trough markers (when zoomed ≤ 10 min) and the selection shaded.
+- tsc, eslint, build clean; the worker chunk (13 KB) contains the analysis.
+
+**Notes**
+- Amplitude calibration discussed: bench stretch jig → µH per mm (recommended now); incentive-spirometer volume calibration per person/posture (future; single chest band can't capture abdominal/paradoxical breathing).
+- No progress indicator during the ~3 s analysis of a full night (the bar sits at 100%); fine for 3-min trials.
+
+**Next**
+- Step 5b: compare + print for uploaded recordings. Step 6: validation table across synthetic profiles.
+
+## 2026-11-10 — SNR, SIR and per-minute quality flags
+
+**Done**
+- `tools/processing/quality.py`: three bands of the cleaned signal: interference < 0.1 Hz (Butterworth low-pass), breathing 0.1–1 Hz (the existing band-pass), noise > 1 Hz (high-pass), each zero-phase. Band power = variance (Parseval). **SNR = 10·log10(P_breathing / P_noise)**, **SIR = 10·log10(P_breathing / P_interference)**; SIR is NaN for windows < 30 s. Per-minute labels: `no_signal` (> 50% missing/rejected), `good` (SNR ≥ 15 dB and SIR ≥ 10 dB), else `poor`. This also covers the step-4 quality flags that were missing.
+- `process_trial` returns `snr_db`, `sir_db` (counting window) and `quality` (per minute); `trial_report.py` adds SNR/SIR columns and a "low signal quality" note.
+- TypeScript port (`breathing.ts`: `snrSirDb`, `windowQuality`, HIGHPASS/LOWPASS coefficients exported from scipy); cross-check matches Python to 1e-6 dB. Upload view: SNR/SIR tiles for the counting window and in the drag-selection readout; per-minute quality shading on the trace.
+- Tests: Python 39 (known-answer SNR within 1 dB, SIR drop with drift, labels, real belt > 20/15 dB); web 27.
+
+**Real files (trimmed 10/5 s):** belt breathing SNR 27.4 / SIR 20.0 dB; key/coil bench tests SIR −2 to −4 dB; `S20261103_135933` SNR 7.6 / SIR −8.3 dB.
+
+**Caveats**
+- Synthetic recordings come out SIR 0–5 dB ("poor"): the generator's drift is stronger than the real belt's. Thresholds (15/10 dB) must be tuned on the Test 2 recordings.
+- Movement at breathing speed isn't visible to either ratio.
+- Process slip: `npx tsc` was run once from the repo root, which downloaded and ran the placeholder npm package `tsc@2.0.4` (prints a message only). No project change. Now using `npx --no-install`.
+
+## 2026-11-10 — Phase 5, Step 5b: compare + print for uploaded recordings
+
+**Done**
+- `web/src/lib/processing/compare.ts` (+ 4 tests): breath-by-breath rate (60 ÷ trough interval), median breath depth, `alignSeries` (shared x axis with nulls; drawn with spanGaps), device-clock start → seconds after noon.
+- `components/upload/UploadCompare.tsx`: tick 2–3 recordings with sensor data → **Compare**. Shows the breathing signal (each scaled to its own median breath, so different belt fits line up) or breath-by-breath rate, aligned by switch-on or device clock, with Whole / 5 min / 1 min / 20 s zoom and a position slider; summary table (start, duration, complete breaths, rate). Fixed colors per recording.
+- **Print:** buttons on an uploaded recording and on the compare view; navigation, intro, chart controls and back links are hidden on paper, and a "Night Night · trial recording summary / comparison" header appears.
+- Upload intro text updated (analysis now runs on uploads).
+- Checks: web 31 tests, tsc/eslint/build clean.
+
+**Notes**
+- Compare-table counts cover whole recordings (no settling trim); per-recording pages hold the trim for Test 2.
+- Not clicked through by Claude (login required).

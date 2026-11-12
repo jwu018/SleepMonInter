@@ -4,14 +4,14 @@ Reads sample_data/manifest.json plus each recording's CSV and truth file, and wr
 
     web/data/index.json                  patients + per-night summaries (patient list/overview)
     web/data/recordings/<id>.json        one night: metadata, summary, per-minute metrics
-    web/data/waveforms/<id>.i16          the raw signal at 10 Hz as little-endian int16
+    web/data/waveforms/<id>.i16          belt inductance at 12.5 Hz as little-endian int16
 
 The per-minute metrics stand in for what signal processing will produce in Phase 5. They
 come from the ground truth, with RR and amplitude blanked on no_signal minutes, because
 processing can't measure breathing that the band didn't record.
 
-Why a binary waveform? A night at 10 Hz is 288,000 values: about 576 KB as int16 versus
-about 2 MB as JSON. The web server slices and downsamples it per zoom window.
+Why a binary waveform? A night at 12.5 Hz is 360,000 values: about 720 KB as int16 versus
+about 3 MB as JSON. The web server slices and downsamples it per zoom window.
 
 Usage (after generate_sample_set.py):
     python build_static_data.py
@@ -27,26 +27,33 @@ from pathlib import Path
 
 import numpy as np
 
-from plot_recording import read_recording
+from device_csv import read_device_csv
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SAMPLE_DIR = ROOT / "sample_data"
 DEFAULT_OUT_DIR = ROOT / "web" / "data"
 
-SOURCE_RATE_HZ = 20
-WAVEFORM_RATE_HZ = 10  # half the device rate is plenty to draw breaths (~0.3 Hz)
+SOURCE_RATE_HZ = 25
+WAVEFORM_RATE_HZ = SOURCE_RATE_HZ / 2  # 12.5 Hz: plenty to draw breaths (~0.3 Hz)
+# Inductance is stored as int16 steps of 0.1 nH around the night's median: +/-3.2 uH of range
+# (breaths swing ~0.06 uH, artifacts up to ~0.5 uH) at a resolution far below the noise.
+WAVEFORM_SCALE_UH = 1e-4
 WAVEFORM_MISSING = -32768  # int16 value meaning "no sample here" (data gap)
 GAP_THRESHOLD_MS = 1000
 
 
-def downsample_waveform(timestamp_ms: np.ndarray, raw_value: np.ndarray) -> tuple[np.ndarray, int]:
-    """Put samples on a regular 20 Hz grid (NaN in gaps), average pairs to 10 Hz, and pack
-    as int16 offsets from the night's median. Returns (int16 array, offset in counts)."""
+def downsample_waveform(
+    timestamp_ms: np.ndarray, values: np.ndarray, scale: float = WAVEFORM_SCALE_UH
+) -> tuple[np.ndarray, float]:
+    """Put samples on a regular 25 Hz grid (NaN in gaps), average pairs to 12.5 Hz, and pack
+    as int16 steps of `scale` from the night's median.
+
+    Returns (int16 array, offset). A value is restored as offset + packed * scale."""
     period_ms = 1000 // SOURCE_RATE_HZ
     n_grid = int(timestamp_ms[-1] // period_ms) + 1
     n_grid += n_grid % 2  # even length, so pairs line up
     grid = np.full(n_grid, np.nan)
-    grid[timestamp_ms // period_ms] = raw_value
+    grid[(timestamp_ms // period_ms).astype(np.int64)] = values
 
     pairs = grid.reshape(-1, 2)
     both_missing = np.isnan(pairs).all(axis=1)
@@ -55,8 +62,8 @@ def downsample_waveform(timestamp_ms: np.ndarray, raw_value: np.ndarray) -> tupl
     averaged = np.full(len(pairs), np.nan)
     averaged[~both_missing] = pairs_filled[~both_missing].sum(axis=1) / counts[~both_missing]
 
-    offset = int(np.nanmedian(averaged))
-    packed = np.clip(np.rint(averaged - offset), -32767, 32767)
+    offset = float(np.nanmedian(averaged))
+    packed = np.clip(np.rint((averaged - offset) / scale), -32767, 32767)
     packed[np.isnan(averaged)] = WAVEFORM_MISSING
     return packed.astype("<i2"), offset
 
@@ -108,42 +115,47 @@ def build(sample_dir: Path, out_dir: Path) -> None:
         p["study_code"]: [] for p in manifest["patients"]
     }
     for entry in manifest["recordings"]:
-        rec = read_recording(sample_dir / entry["csv"])
+        rec = read_device_csv(sample_dir / entry["csv"])
+        elapsed_ms = rec.columns["elapsed_ms"]
         truth = json.loads((sample_dir / entry["truth"]).read_text(encoding="utf-8"))
         recording_id = entry["recording_id"]
 
-        start = datetime.fromisoformat(rec.header["start_utc"])
-        last_ms = int(rec.timestamp_ms[-1])
-        end = start + timedelta(milliseconds=last_ms + int(rec.header["sample_period_ms"]))
-        battery = rec.battery_mv[~np.isnan(rec.battery_mv)]
-        gap_count = int(np.count_nonzero(np.diff(rec.timestamp_ms) > GAP_THRESHOLD_MS))
+        # The device file only knows local clock time; the generator recorded UTC in the truth file.
+        start = datetime.fromisoformat(truth["start_utc"])
+        period_ms = 1000 / rec.sample_rate_hz
+        end = start + timedelta(milliseconds=float(elapsed_ms[-1]) + period_ms)
+        vbat = rec.column("vbat_v")
+        battery_mv = np.rint(vbat[np.isfinite(vbat)] * 1000)
+        gap_count = int(np.count_nonzero(np.diff(elapsed_ms) > GAP_THRESHOLD_MS))
 
         metrics = dashboard_metrics(truth["minutes"])
         summary = {
             "recording_id": recording_id,
             "study_code": entry["study_code"],
-            "device_id": rec.header["device_id"],
+            "device_id": rec.header.get("device_id", entry["device_id"]),
             "start_utc": format_utc(start),
             "end_utc": format_utc(end),
             "duration_min": round((end - start).total_seconds() / 60, 1),
-            "battery_start_mv": int(battery[0]),
-            "battery_end_mv": int(battery[-1]),
+            "battery_start_mv": int(battery_mv[0]),
+            "battery_end_mv": int(battery_mv[-1]),
             "gap_count": gap_count,
             **summarize(metrics),
         }
         summaries_by_patient[entry["study_code"]].append(summary)
 
-        waveform, offset = downsample_waveform(rec.timestamp_ms, rec.raw_value)
+        waveform, offset = downsample_waveform(elapsed_ms, rec.column("ldc_L_uH"))
         (out_dir / "waveforms" / f"{recording_id}.i16").write_bytes(waveform.tobytes())
 
         detail = {
             **summary,
-            "sample_period_ms": int(rec.header["sample_period_ms"]),
+            "sample_period_ms": round(period_ms),
             "status": "processed",
             "metrics": metrics,
             "waveform": {
                 "sample_rate_hz": WAVEFORM_RATE_HZ,
-                "offset_counts": offset,
+                "offset": offset,
+                "scale": WAVEFORM_SCALE_UH,
+                "unit": "µH",
                 "n_samples": len(waveform),
                 "missing_value": WAVEFORM_MISSING,
             },

@@ -9,17 +9,18 @@ import { listPatients } from "@/lib/data";
 export default function UploadPage() {
   return (
     <section className="space-y-6">
-      <div>
+      <div className="print:hidden">
         <h1 className="text-2xl font-semibold tracking-tight">Upload recordings</h1>
         <p className="text-sm text-muted">
           Read recordings straight from the device&apos;s microSD card to check what was captured.
         </p>
       </div>
 
-      <div className="rounded-md border border-border bg-surface px-4 py-3 text-sm">
+      <div className="rounded-md border border-border bg-surface px-4 py-3 text-sm print:hidden">
         <strong>Stays on this computer.</strong> Files are read in this browser tab only. Nothing is
         uploaded to a server, and everything is cleared when you close or reload the tab.
-        Breathing analysis (rate and amplitude) isn&apos;t run on uploads yet.
+        Recordings with sensor data are analysed for breaths, rate, pauses and signal quality;
+        tick two or three to compare them.
       </div>
 
       <Suspense fallback={<BlockSkeleton height={240} />}>

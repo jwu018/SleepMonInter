@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import type uPlot from "uplot";
 import { LocalTime } from "@/components/LocalTime";
+import { alignByClock, clockLabel, hoursAfterNoon } from "@/lib/clockAxis";
 import type { MinuteMetrics } from "@/lib/data/types";
 import { axisStyle, type ChartTheme, UPlotChart } from "./UPlotChart";
 
-// Overlay 2-3 nights, aligned by time since the recording started (not clock time),
-// so "2 hours in" lines up across nights that began at different times.
+// Overlay 2-3 nights, aligned either by time since the recording started ("2 hours in"
+// lines up) or by clock time ("3 am" lines up, using the viewer's time zone).
 
 export interface CompareNight {
   recording_id: string;
@@ -21,6 +22,7 @@ const MAX_SELECTED = 3;
 const SMOOTH_MINUTES = 5;
 
 type Metric = "resp_rate_bpm" | "amplitude_rel";
+type Align = "elapsed" | "clock";
 const METRICS: Record<Metric, { label: string; unit: string; digits: number; range: [number, number] }> = {
   resp_rate_bpm: { label: "Respiratory rate", unit: "bpm", digits: 1, range: [5, 35] },
   amplitude_rel: { label: "Relative amplitude", unit: "×", digits: 2, range: [0, 1.6] },
@@ -50,6 +52,7 @@ export function CompareChart({ nights }: { nights: CompareNight[] }) {
   );
   const [metric, setMetric] = useState<Metric>("resp_rate_bpm");
   const [smooth, setSmooth] = useState(true);
+  const [align, setAlign] = useState<Align>("elapsed");
 
   const shown = nights.filter((n) => selected.includes(n.recording_id));
 
@@ -64,15 +67,28 @@ export function CompareChart({ nights }: { nights: CompareNight[] }) {
   }
 
   const data: uPlot.AlignedData = useMemo(() => {
+    const valuesOf = (n: CompareNight) => {
+      const raw = n.metrics[metric];
+      return smooth ? rollingMean(raw, SMOOTH_MINUTES) : raw;
+    };
+    if (align === "clock") {
+      // Local clock time of each night's start, in the viewer's time zone (this runs in the browser).
+      const { x, series } = alignByClock(
+        shown.map((n) => {
+          const start = new Date(n.start_utc);
+          return { start_x: hoursAfterNoon(start.getHours(), start.getMinutes()), values: valuesOf(n) };
+        }),
+      );
+      return [x, ...series];
+    }
     const longest = Math.max(0, ...shown.map((n) => n.metrics.minute_index.length));
     const xs = Array.from({ length: longest }, (_, i) => i / 60); // hours since start
     const series = shown.map((n) => {
-      const raw = n.metrics[metric];
-      const values = smooth ? rollingMean(raw, SMOOTH_MINUTES) : raw;
+      const values = valuesOf(n);
       return xs.map((_, i) => values[i] ?? null);
     });
     return [xs, ...series];
-  }, [shown, metric, smooth]);
+  }, [shown, metric, smooth, align]);
 
   const info = METRICS[metric];
   const makeOptions = (theme: ChartTheme, width: number): uPlot.Options => ({
@@ -81,7 +97,10 @@ export function CompareChart({ nights }: { nights: CompareNight[] }) {
     cursor: { drag: { x: false, y: false }, points: { size: 8 } },
     scales: { x: { time: false }, y: { range: info.range } },
     series: [
-      { label: "Elapsed", value: (_u, v) => (v == null ? "" : formatElapsed(v)) },
+      {
+        label: align === "clock" ? "Clock time" : "Elapsed",
+        value: (_u, v) => (v == null ? "" : align === "clock" ? clockLabel(v) : formatElapsed(v)),
+      },
       ...shown.map((n) => ({
         label: nightLabel(n.start_utc),
         stroke: theme.series[n.color_slot % theme.series.length],
@@ -92,7 +111,9 @@ export function CompareChart({ nights }: { nights: CompareNight[] }) {
       })),
     ],
     axes: [
-      axisStyle(theme, { values: (_u, ticks) => ticks.map((h) => `${h} h`) }),
+      axisStyle(theme, {
+        values: (_u, ticks) => ticks.map((h) => (align === "clock" ? clockLabel(h) : `${h} h`)),
+      }),
       axisStyle(theme, { size: 48 }),
     ],
   });
@@ -133,6 +154,18 @@ export function CompareChart({ nights }: { nights: CompareNight[] }) {
           ))}
         </fieldset>
 
+        <fieldset className="flex gap-3">
+          <legend className="mb-1 text-sm text-muted">Align by</legend>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="align" checked={align === "elapsed"} onChange={() => setAlign("elapsed")} />
+            Time since start
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="align" checked={align === "clock"} onChange={() => setAlign("clock")} />
+            Clock time
+          </label>
+        </fieldset>
+
         <label className="flex items-center gap-2 self-end text-sm">
           <input type="checkbox" checked={smooth} onChange={(e) => setSmooth(e.target.checked)} />
           {SMOOTH_MINUTES}-min average
@@ -146,14 +179,14 @@ export function CompareChart({ nights }: { nights: CompareNight[] }) {
       ) : (
         <figure>
           <figcaption className="text-sm font-medium">
-            {info.label} ({info.unit}) by hours since recording start
+            {info.label} ({info.unit}) by {align === "clock" ? "clock time (your time zone)" : "hours since recording start"}
           </figcaption>
           {/* Rebuild the chart when the set of series changes (uPlot series are fixed at creation). */}
           <UPlotChart
             data={data}
             height={300}
             makeOptions={makeOptions}
-            deps={[selected.join(","), metric]}
+            deps={[selected.join(","), metric, align]}
           />
         </figure>
       )}

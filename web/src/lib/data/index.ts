@@ -31,7 +31,10 @@ interface IndexFile {
 interface RecordingFile extends RecordingDetail {
   waveform: {
     sample_rate_hz: number;
-    offset_counts: number;
+    /** A stored int16 value v means offset + v * scale, in `unit`. */
+    offset: number;
+    scale: number;
+    unit: string;
     n_samples: number;
     missing_value: number;
   };
@@ -111,7 +114,7 @@ export async function getWaveform(
   const msPerSample = 1000 / meta.sample_rate_hz;
   const first = Math.max(0, Math.floor(startMs / msPerSample));
   const last = Math.min(meta.n_samples, Math.ceil(endMs / msPerSample));
-  const toCounts = (v: number) => (v === meta.missing_value ? null : v + meta.offset_counts);
+  const toValue = (v: number) => (v === meta.missing_value ? null : meta.offset + v * meta.scale);
 
   const t_ms: number[] = [];
   const raw_value: (number | null)[] = [];
@@ -120,9 +123,9 @@ export async function getWaveform(
   if (count <= maxPoints) {
     for (let i = first; i < last; i++) {
       t_ms.push(i * msPerSample);
-      raw_value.push(toCounts(samples[i]));
+      raw_value.push(toValue(samples[i]));
     }
-    return { start_ms: first * msPerSample, end_ms: last * msPerSample, t_ms, raw_value, resolution: "raw" };
+    return { start_ms: first * msPerSample, end_ms: last * msPerSample, t_ms, raw_value, unit: meta.unit, resolution: "raw" };
   }
 
   const buckets = Math.max(1, Math.floor(maxPoints / 2));
@@ -145,8 +148,8 @@ export async function getWaveform(
       raw_value.push(null);
     } else {
       t_ms.push(t, t + (perBucket * msPerSample) / 2);
-      raw_value.push(min + meta.offset_counts, max + meta.offset_counts);
+      raw_value.push(meta.offset + min * meta.scale, meta.offset + max * meta.scale);
     }
   }
-  return { start_ms: first * msPerSample, end_ms: last * msPerSample, t_ms, raw_value, resolution: "envelope" };
+  return { start_ms: first * msPerSample, end_ms: last * msPerSample, t_ms, raw_value, unit: meta.unit, resolution: "envelope" };
 }

@@ -1,13 +1,19 @@
 // Main-thread side of the worker: start a worker for one file and wrap its messages in a
 // Promise, with a progress callback.
 
+import type { BreathingAnalysis } from "../processing/breathing";
 import type { DeviceRecording } from "./parseDeviceCsv";
 import type { WorkerResponse } from "./parse.worker";
 
 export function readRecording(
   file: File,
   onProgress: (fraction: number) => void,
-): Promise<{ hash: string; recording: DeviceRecording }> {
+): Promise<{
+  hash: string;
+  recording: DeviceRecording;
+  analysis: BreathingAnalysis | null;
+  analysisError: string | null;
+}> {
   return new Promise((resolve, reject) => {
     // This exact `new Worker(new URL(...), import.meta.url)` shape is what lets Next.js
     // find and bundle the worker file.
@@ -19,7 +25,14 @@ export function readRecording(
         return;
       }
       worker.terminate();
-      if (msg.type === "done") resolve({ hash: msg.hash, recording: msg.recording });
+      if (msg.type === "done") {
+        resolve({
+          hash: msg.hash,
+          recording: msg.recording,
+          analysis: msg.analysis,
+          analysisError: msg.analysis_error,
+        });
+      }
       else reject(new Error(msg.message));
     };
     worker.onerror = (event) => {

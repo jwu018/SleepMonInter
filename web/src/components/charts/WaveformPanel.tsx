@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type uPlot from "uplot";
 import type { WaveformWindow } from "@/lib/data/types";
+import { type ChartMarker, markerPlugin } from "./markerPlugin";
+import { pickHooks } from "./NightTrends";
 import { axisStyle, type ChartTheme, UPlotChart } from "./UPlotChart";
 
 // The raw breathing signal for a chosen time window.
@@ -15,7 +17,7 @@ const ZOOMS = [
   { label: "5 min", span_ms: 5 * 60_000 },
   { label: "30 s", span_ms: 30_000 },
 ] as const;
-const MAX_POINTS = 3200; // enough to show a 5-minute window (3,000 points at 10 Hz) unreduced
+const MAX_POINTS = 4000; // enough to show a 5-minute window (3,750 points at 12.5 Hz) unreduced
 
 interface Props {
   recordingId: string;
@@ -23,6 +25,10 @@ interface Props {
   durationMs: number;
   /** When set (e.g. by clicking a trend chart), jump to a 5-minute window centered here. */
   focusMs?: number | null;
+  /** Markers in ms since recording start. */
+  markers?: ChartMarker[];
+  /** Click (endMs = null) or drag on the waveform, in ms since recording start. */
+  onPick?: (startMs: number, endMs: number | null) => void;
 }
 
 type LoadState =
@@ -30,7 +36,7 @@ type LoadState =
   | { status: "error"; message: string }
   | { status: "ready"; window: WaveformWindow };
 
-export function WaveformPanel({ recordingId, startUtc, durationMs, focusMs }: Props) {
+export function WaveformPanel({ recordingId, startUtc, durationMs, focusMs, markers = [], onPick }: Props) {
   const [spanMs, setSpanMs] = useState(durationMs);
   const [startMs, setStartMs] = useState(0);
   const [state, setState] = useState<LoadState>({ status: "loading" });
@@ -83,22 +89,36 @@ export function WaveformPanel({ recordingId, startUtc, durationMs, focusMs }: Pr
     setStartMs((s) => clamp(s + direction * spanMs * 0.8, 0, Math.max(0, durationMs - spanMs)));
   }
 
+  const unit = state.status === "ready" ? state.window.unit : "";
   const makeOptions = (theme: ChartTheme, width: number): uPlot.Options => ({
     width,
     height: 220,
-    cursor: { drag: { x: false, y: false }, points: { show: false } },
+    cursor: { drag: { x: Boolean(onPick), y: false, setScale: false }, points: { show: false } },
     scales: { x: { time: true } },
     series: [
       {},
       {
-        label: "Raw signal",
+        label: "Belt inductance",
         stroke: theme.series[0],
         width: 1,
         points: { show: false },
-        value: (_u, v, _s, idx) => (idx == null ? "—" : v == null ? "gap" : `${Math.round(v)} counts`),
+        value: (_u, v, _s, idx) => (idx == null ? "—" : v == null ? "gap" : `${v.toFixed(4)} ${unit}`),
       },
     ],
-    axes: [axisStyle(theme), axisStyle(theme, { size: 64 })],
+    axes: [axisStyle(theme), axisStyle(theme, { size: 72, values: (_u, ticks) => ticks.map((t) => t.toFixed(3)) })],
+    plugins: [
+      markerPlugin(
+        markers.map((m) => ({
+          ...m,
+          x_start: startS + m.x_start / 1000,
+          x_end: m.x_end === null ? null : startS + m.x_end / 1000,
+        })),
+        theme.annotation,
+      ),
+    ],
+    hooks: onPick
+      ? pickHooks((a, b) => onPick((a - startS) * 1000, b === null ? null : (b - startS) * 1000))
+      : {},
   });
 
   const atStart = startMs <= 0;
@@ -145,7 +165,7 @@ export function WaveformPanel({ recordingId, startUtc, durationMs, focusMs }: Pr
         <span className="text-xs text-muted">
           {state.status === "ready" && state.window.resolution === "envelope"
             ? "Zoomed out: showing the min–max envelope of the signal"
-            : "Showing every point (10 Hz)"}
+            : "Showing every stored point (12.5 Hz)"}
         </span>
       </div>
 
@@ -163,7 +183,7 @@ export function WaveformPanel({ recordingId, startUtc, durationMs, focusMs }: Pr
       )}
 
       <div className="relative">
-        <UPlotChart data={data} height={220} makeOptions={makeOptions} />
+        <UPlotChart data={data} height={220} makeOptions={makeOptions} deps={[JSON.stringify(markers)]} />
         {state.status === "loading" && (
           <p className="absolute inset-0 grid place-items-center text-sm text-muted">Loading signal…</p>
         )}
@@ -174,8 +194,9 @@ export function WaveformPanel({ recordingId, startUtc, durationMs, focusMs }: Pr
         )}
       </div>
       <p className="text-xs text-muted">
-        Units are raw sensor counts: only changes are meaningful, not the absolute level.
-        Tip: click a point on the trend charts above to jump here.
+        Belt inductance in µH: breathing shows as rises (inhale) and falls (exhale). Only changes
+        matter; the resting level depends on how the belt is fitted.
+        Tip: click a point on the trend charts above to jump here. Click or drag on any chart to add a note.
       </p>
     </div>
   );

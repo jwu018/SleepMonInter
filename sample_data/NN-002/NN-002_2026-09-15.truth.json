@@ -2,6 +2,7 @@
  "truth_format": 1,
  "source_file": "NN-002_2026-09-15.csv",
  "start_utc": "2026-09-15T02:59:00Z",
+ "start_local": "2026-09-14 22:59:00",
  "profile": "declining",
  "seed": 200,
  "duration_s": 30600.0,
@@ -1544,15 +1545,6 @@
   ],
   "quality": [
    "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
    "good",
    "good",
    "good",
@@ -1563,7 +1555,16 @@
    "good",
    "good",
    "good",
-   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "good",
    "good",
    "poor",
@@ -1598,20 +1599,6 @@
    "good",
    "good",
    "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
    "good",
    "good",
    "good",
@@ -1642,7 +1629,13 @@
    "good",
    "good",
    "good",
-   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "good",
    "good",
    "good",
@@ -1681,18 +1674,8 @@
    "good",
    "good",
    "good",
+   "good",
    "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "good",
    "good",
    "good",
@@ -1712,35 +1695,7 @@
    "good",
    "good",
    "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "good",
    "good",
    "good",
@@ -1779,22 +1734,12 @@
    "good",
    "good",
    "good",
-   "poor",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "good",
    "good",
    "good",
    "poor",
    "good",
    "good",
-   "poor",
    "good",
    "good",
    "good",
@@ -1817,9 +1762,19 @@
    "good",
    "good",
    "good",
-   "poor",
    "good",
-   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "good",
    "good",
    "good",
@@ -1978,6 +1933,18 @@
    "good",
    "good",
    "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "good",
    "good",
    "good",
@@ -2010,6 +1977,53 @@
    "good",
    "good",
    "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
+   "poor",
+   "good",
+   "good",
+   "good",
+   "good",
+   "good",
    "poor",
    "good",
    "good",
@@ -2032,23 +2046,10 @@
    "good",
    "good",
    "good",
-   "poor",
-   "poor",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
-   "good",
    "good",
    "good",
    "good",
    "poor",
-   "good",
-   "good",
    "good",
    "good",
    "good",
@@ -2057,34 +2058,14 @@
  },
  "events": [
   {
-   "kind": "artifact_burst",
-   "start_ms": 95550,
-   "end_ms": 104900
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 548600,
-   "end_ms": 548700
-  },
-  {
    "kind": "shallow",
    "start_ms": 1053851,
    "end_ms": 1348592
   },
   {
-   "kind": "artifact_spike",
-   "start_ms": 1205700,
-   "end_ms": 1205800
-  },
-  {
    "kind": "no_signal",
    "start_ms": 1436475,
    "end_ms": 1984689
-  },
-  {
-   "kind": "baseline_shift",
-   "start_ms": 1779000,
-   "end_ms": 1779050
   },
   {
    "kind": "pause",
@@ -2102,16 +2083,6 @@
    "end_ms": 2923208
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 3329150,
-   "end_ms": 3335450
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 4115600,
-   "end_ms": 4118100
-  },
-  {
    "kind": "shallow",
    "start_ms": 5527883,
    "end_ms": 5785140
@@ -2122,9 +2093,9 @@
    "end_ms": 5686492
   },
   {
-   "kind": "artifact_spike",
-   "start_ms": 5985950,
-   "end_ms": 5986000
+   "kind": "baseline_shift",
+   "start_ms": 6912440,
+   "end_ms": 6912480
   },
   {
    "kind": "shallow",
@@ -2132,14 +2103,14 @@
    "end_ms": 7536744
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 7430800,
-   "end_ms": 7434450
-  },
-  {
    "kind": "pause",
    "start_ms": 7463762,
    "end_ms": 7475488
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 7872240,
+   "end_ms": 7878360
   },
   {
    "kind": "pause",
@@ -2150,11 +2121,6 @@
    "kind": "shallow",
    "start_ms": 8171304,
    "end_ms": 8251966
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 8319850,
-   "end_ms": 8319950
   },
   {
    "kind": "shallow",
@@ -2172,19 +2138,29 @@
    "end_ms": 8902730
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 10127450,
-   "end_ms": 10130600
+   "kind": "baseline_shift",
+   "start_ms": 9021840,
+   "end_ms": 9021880
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 10482650,
-   "end_ms": 10489500
+   "start_ms": 9115080,
+   "end_ms": 9119960
   },
   {
    "kind": "artifact_burst",
-   "start_ms": 11227000,
-   "end_ms": 11229200
+   "start_ms": 10550800,
+   "end_ms": 10554880
+  },
+  {
+   "kind": "artifact_spike",
+   "start_ms": 10559280,
+   "end_ms": 10559360
+  },
+  {
+   "kind": "artifact_burst",
+   "start_ms": 11609080,
+   "end_ms": 11616080
   },
   {
    "kind": "pause",
@@ -2202,11 +2178,6 @@
    "end_ms": 12899374
   },
   {
-   "kind": "baseline_shift",
-   "start_ms": 13285250,
-   "end_ms": 13285300
-  },
-  {
    "kind": "shallow",
    "start_ms": 13567583,
    "end_ms": 13751791
@@ -2222,39 +2193,9 @@
    "end_ms": 14210259
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 14206950,
-   "end_ms": 14208950
-  },
-  {
-   "kind": "baseline_shift",
-   "start_ms": 14271900,
-   "end_ms": 14271950
-  },
-  {
-   "kind": "baseline_shift",
-   "start_ms": 14887700,
-   "end_ms": 14887750
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 15085600,
-   "end_ms": 15085700
-  },
-  {
    "kind": "pause",
    "start_ms": 15222801,
    "end_ms": 15232515
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 16491850,
-   "end_ms": 16496300
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 16579550,
-   "end_ms": 16579700
   },
   {
    "kind": "shallow",
@@ -2327,6 +2268,11 @@
    "end_ms": 22851592
   },
   {
+   "kind": "artifact_spike",
+   "start_ms": 22939520,
+   "end_ms": 22939600
+  },
+  {
    "kind": "pause",
    "start_ms": 23204436,
    "end_ms": 23219394
@@ -2342,6 +2288,11 @@
    "end_ms": 23349200
   },
   {
+   "kind": "artifact_spike",
+   "start_ms": 23342600,
+   "end_ms": 23342720
+  },
+  {
    "kind": "shallow",
    "start_ms": 23378673,
    "end_ms": 23674965
@@ -2352,14 +2303,14 @@
    "end_ms": 23787876
   },
   {
+   "kind": "baseline_shift",
+   "start_ms": 24449080,
+   "end_ms": 24449120
+  },
+  {
    "kind": "pause",
    "start_ms": 25706859,
    "end_ms": 25718210
-  },
-  {
-   "kind": "artifact_burst",
-   "start_ms": 25707650,
-   "end_ms": 25715400
   },
   {
    "kind": "shallow",
@@ -2375,11 +2326,6 @@
    "kind": "pause",
    "start_ms": 26005039,
    "end_ms": 26014882
-  },
-  {
-   "kind": "artifact_spike",
-   "start_ms": 26518050,
-   "end_ms": 26518150
   },
   {
    "kind": "shallow",
@@ -2402,9 +2348,9 @@
    "end_ms": 27552208
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 28076650,
-   "end_ms": 28079300
+   "kind": "artifact_spike",
+   "start_ms": 27820400,
+   "end_ms": 27820520
   },
   {
    "kind": "shallow",
@@ -2417,14 +2363,19 @@
    "end_ms": 28397710
   },
   {
+   "kind": "artifact_spike",
+   "start_ms": 28467880,
+   "end_ms": 28468000
+  },
+  {
    "kind": "pause",
    "start_ms": 28497597,
    "end_ms": 28504381
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 29398550,
-   "end_ms": 29401100
+   "kind": "artifact_spike",
+   "start_ms": 28841280,
+   "end_ms": 28841320
   },
   {
    "kind": "pause",
@@ -2437,9 +2388,9 @@
    "end_ms": 29763887
   },
   {
-   "kind": "artifact_burst",
-   "start_ms": 30198950,
-   "end_ms": 30203450
+   "kind": "artifact_spike",
+   "start_ms": 30315360,
+   "end_ms": 30315440
   },
   {
    "kind": "pause",

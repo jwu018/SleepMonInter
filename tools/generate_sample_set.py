@@ -28,6 +28,9 @@ from generate_synthetic import PROFILES, Profile, format_utc, generate_recording
 DEFAULT_OUT_DIR = Path(__file__).resolve().parent.parent / "sample_data"
 NIGHTS_PER_PATIENT = 4
 FIRST_NIGHT = datetime(2026, 9, 14, tzinfo=UTC)
+# Every sample night falls in US Eastern daylight time (before Nov 1), so the device clock
+# (local time, no zone) is UTC-4.
+UTC_OFFSET_HOURS = -4.0
 
 
 @dataclass(frozen=True)
@@ -99,6 +102,7 @@ def main(argv: list[str] | None = None) -> int:
                 seed=seed,
                 duration_hours=duration_hours,
                 start_utc=start_utc,
+                utc_offset_hours=UTC_OFFSET_HOURS,
                 device_id=patient.device_id,
                 out=csv_path,
             )

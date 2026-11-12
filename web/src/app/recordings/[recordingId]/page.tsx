@@ -6,6 +6,7 @@ import { NightCharts } from "@/components/charts/NightCharts";
 import { LocalTime } from "@/components/LocalTime";
 import { BlockSkeleton } from "@/components/Skeleton";
 import { StatTile } from "@/components/StatTile";
+import { requireUser } from "@/lib/auth";
 import { getRecording } from "@/lib/data";
 import { formatDuration, formatNumber } from "@/lib/format";
 
@@ -20,7 +21,7 @@ export default function RecordingPage({ params }: PageProps<"/recordings/[record
 
 async function NightView({ params }: { params: PageProps<"/recordings/[recordingId]">["params"] }) {
   const { recordingId } = await params;
-  const rec = await getRecording(recordingId);
+  const [rec, user] = await Promise.all([getRecording(recordingId), requireUser()]);
   if (!rec) notFound();
 
   const durationMs = rec.metrics.minute_index.length * 60_000;
@@ -72,17 +73,17 @@ async function NightView({ params }: { params: PageProps<"/recordings/[recording
         <StatTile label="Data gaps" value={rec.gap_count} note="Breaks of more than 1 s in the file" />
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
-        <NightCharts
-          recordingId={rec.recording_id}
-          startUtc={rec.start_utc}
-          durationMs={durationMs}
-          metrics={rec.metrics}
-        />
-        <aside>
-          <BatteryPanel startMv={rec.battery_start_mv} endMv={rec.battery_end_mv} durationMin={rec.duration_min} />
-        </aside>
+      <div className="max-w-sm">
+        <BatteryPanel startMv={rec.battery_start_mv} endMv={rec.battery_end_mv} durationMin={rec.duration_min} />
       </div>
+
+      <NightCharts
+        recordingId={rec.recording_id}
+        startUtc={rec.start_utc}
+        durationMs={durationMs}
+        metrics={rec.metrics}
+        authorEmail={user.email}
+      />
     </article>
   );
 }

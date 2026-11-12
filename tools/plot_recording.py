@@ -4,6 +4,7 @@ Three panels:
   1. the whole night (to spot baseline shifts, no-signal stretches and trends);
   2. a zoomed window (to see individual breaths, pauses and spikes);
   3. battery voltage.
+Works on any device-format file (docs/DEVICE_FORMAT.md), real or synthetic.
 Data gaps (timestamp jumps > 1 s) are shaded red in the top two panels. If a
 `<name>.truth.json` file sits next to the recording, injected events are shaded too.
 
@@ -17,12 +18,13 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Patch
+
+from device_csv import read_device_csv
 
 GAP_THRESHOLD_MS = 1000
 # Shading colors for events read from a ground-truth file (data gaps are always red).
@@ -32,35 +34,6 @@ EVENT_COLORS = {
     "no_signal": "tab:gray",
     "artifact_burst": "tab:green",
 }
-
-
-@dataclass
-class Recording:
-    header: dict[str, str]
-    timestamp_ms: np.ndarray
-    raw_value: np.ndarray
-    battery_mv: np.ndarray  # NaN where not logged
-
-
-def read_recording(path: Path) -> Recording:
-    """Minimal reader for plotting. (The validating parser comes later, in api/app/ingest/.)"""
-    header: dict[str, str] = {}
-    with path.open(encoding="utf-8") as f:
-        for line in f:
-            if not line.startswith("#"):
-                break
-            key, _, value = line[1:].strip().partition("=")
-            header[key] = value
-
-    # Skip the header lines explicitly: with names=True, genfromtxt would otherwise read the
-    # first "# key=value" comment as the column names. Empty battery cells become NaN.
-    data = np.genfromtxt(path, delimiter=",", skip_header=len(header), names=True)
-    return Recording(
-        header=header,
-        timestamp_ms=data["timestamp_ms"].astype(np.int64),
-        raw_value=data["raw_value"],
-        battery_mv=data["battery_mv"],
-    )
 
 
 def find_gaps(timestamp_ms: np.ndarray) -> list[tuple[int, int]]:
@@ -77,29 +50,36 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--save", type=Path, help="write a PNG instead of opening a window")
     args = parser.parse_args(argv)
 
-    rec = read_recording(args.path)
-    hours = rec.timestamp_ms / 3_600_000
-    gaps = find_gaps(rec.timestamp_ms)
+    rec = read_device_csv(args.path)
+    elapsed_ms = rec.columns["elapsed_ms"]
+    hours = elapsed_ms / 3_600_000
+    gaps = find_gaps(elapsed_ms)
+    # The belt inductance is the breathing signal; without a sensor, fall back to the a0 pin.
+    if rec.has_sensor:
+        signal, signal_label = rec.column("ldc_L_uH"), "belt inductance (uH)"
+    else:
+        signal, signal_label = rec.column("a0_raw"), "a0_raw (no sensor; debug only)"
 
     fig, (ax_night, ax_zoom, ax_batt) = plt.subplots(
         3, 1, figsize=(13, 9), gridspec_kw={"height_ratios": [2, 2, 1]}
     )
-    title = f"{args.path.name}  |  device {rec.header.get('device_id', '?')}"
+    device = rec.header.get("device_id", "?")
+    title = f"{args.path.name}  |  firmware {rec.firmware}  |  device {device}"
     if "profile" in rec.header:
         title += f"  |  profile {rec.header['profile']}, seed {rec.header.get('seed', '?')}"
     fig.suptitle(title)
 
-    ax_night.plot(hours, rec.raw_value, linewidth=0.3)
+    ax_night.plot(hours, signal, linewidth=0.3)
     ax_night.set_xlabel("hours since start")
-    ax_night.set_ylabel("raw_value (counts)")
+    ax_night.set_ylabel(signal_label)
     ax_night.set_title("Whole night")
 
     zoom_start_ms = args.zoom_start_min * 60_000
     zoom_end_ms = zoom_start_ms + args.zoom_minutes * 60_000
-    in_zoom = (rec.timestamp_ms >= zoom_start_ms) & (rec.timestamp_ms < zoom_end_ms)
-    ax_zoom.plot(rec.timestamp_ms[in_zoom] / 1000, rec.raw_value[in_zoom], linewidth=0.8)
+    in_zoom = (elapsed_ms >= zoom_start_ms) & (elapsed_ms < zoom_end_ms)
+    ax_zoom.plot(elapsed_ms[in_zoom] / 1000, signal[in_zoom], linewidth=0.8)
     ax_zoom.set_xlabel("seconds since start")
-    ax_zoom.set_ylabel("raw_value (counts)")
+    ax_zoom.set_ylabel(signal_label)
     ax_zoom.set_title(f"Zoom: {args.zoom_minutes:g} min from minute {args.zoom_start_min:g}")
 
     # If the generator's ground-truth file is next to the recording, mark the injected events.
@@ -124,11 +104,25 @@ def main(argv: list[str] | None = None) -> int:
             ax_zoom.axvspan(start_ms / 1000, end_ms / 1000, color="red", alpha=0.3)
     ax_zoom.set_xlim(zoom_start_ms / 1000, zoom_end_ms / 1000)
 
-    logged = ~np.isnan(rec.battery_mv)
-    ax_batt.plot(hours[logged], rec.battery_mv[logged], marker=".", linestyle="none")
+    vbat = rec.column("vbat_v")
+    logged = ~np.isnan(vbat)
+    ax_batt.plot(hours[logged], vbat[logged], linewidth=1)
     ax_batt.set_xlabel("hours since start")
-    ax_batt.set_ylabel("battery (mV)")
-    ax_batt.set_title("Battery (logged once per minute)")
+    ax_batt.set_ylabel("battery (V)")
+    ax_batt.set_title("Battery" if logged.any() else "Battery (not logged by this firmware)")
+
+    # Notes typed during recording ("# mark" lines).
+    for elapsed, note in rec.marks:
+        if elapsed is not None:
+            ax_night.axvline(elapsed / 3_600_000, color="tab:purple", linewidth=1)
+            ax_night.annotate(
+                note,
+                (elapsed / 3_600_000, 1),
+                xycoords=("data", "axes fraction"),
+                fontsize=7,
+                rotation=90,
+                va="top",
+            )
 
     fig.tight_layout()
     if args.save:

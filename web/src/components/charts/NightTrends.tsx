@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type uPlot from "uplot";
 import type { MinuteMetrics, Quality } from "@/lib/data/types";
+import { type ChartMarker, markerPlugin } from "./markerPlugin";
 import { axisStyle, type ChartTheme, UPlotChart } from "./UPlotChart";
 
 // Respiratory-rate and amplitude trends for one night, one point per minute.
@@ -15,7 +16,7 @@ const SYNC_KEY = "night-trends";
  * uPlot plugin: before the series are drawn, shade every poor / no_signal minute.
  * Drawing in the "drawClear" hook puts the shading *behind* the lines.
  */
-function qualityShading(xs: number[], quality: Quality[], theme: ChartTheme): uPlot.Plugin {
+export function qualityShading(xs: number[], quality: Quality[], theme: ChartTheme): uPlot.Plugin {
   return {
     hooks: {
       drawClear: (u) => {
@@ -40,12 +41,17 @@ function qualityShading(xs: number[], quality: Quality[], theme: ChartTheme): uP
 interface Props {
   startUtc: string;
   metrics: MinuteMetrics;
-  /** Called with seconds-since-epoch when the user clicks a point in time. */
-  onPickTime?: (unixSeconds: number) => void;
+  /**
+   * Called when the user clicks a moment (endS = null) or drags across a stretch.
+   * Times are seconds since 1970 (the charts' x units).
+   */
+  onPick?: (startS: number, endS: number | null) => void;
+  /** Annotation markers to draw, in the same x units. */
+  markers?: ChartMarker[];
   height?: number;
 }
 
-export function NightTrends({ startUtc, metrics, onPickTime, height = 180 }: Props) {
+export function NightTrends({ startUtc, metrics, onPick, markers = [], height = 180 }: Props) {
   const startS = Date.parse(startUtc) / 1000;
   const xs = useMemo(
     () => metrics.minute_index.map((m) => startS + m * 60),
@@ -63,7 +69,8 @@ export function NightTrends({ startUtc, metrics, onPickTime, height = 180 }: Pro
       height,
       cursor: {
         sync: { key: SYNC_KEY },
-        drag: { x: false, y: false },
+        // Dragging selects a stretch (for a note) without zooming the chart.
+        drag: { x: Boolean(onPick), y: false, setScale: false },
         points: { size: 8 },
       },
       scales: { x: { time: true }, y: { range } },
@@ -79,22 +86,13 @@ export function NightTrends({ startUtc, metrics, onPickTime, height = 180 }: Pro
         },
       ],
       axes: [axisStyle(theme), axisStyle(theme, { size: 48 })],
-      plugins: [qualityShading(xs, metrics.quality, theme)],
-      hooks: onPickTime
-        ? {
-            ready: [
-              (u) => {
-                u.over.addEventListener("click", () => {
-                  const idx = u.cursor.idx;
-                  if (idx != null) onPickTime(xs[idx]);
-                });
-              },
-            ],
-          }
-        : {},
+      plugins: [qualityShading(xs, metrics.quality, theme), markerPlugin(markers, theme.annotation)],
+      hooks: onPick ? pickHooks(onPick) : {},
     });
   }
 
+  // Charts are rebuilt when the markers change (cheap: ~500 points each).
+  const markersKey = JSON.stringify(markers);
   const rrData: uPlot.AlignedData = useMemo(() => [xs, metrics.resp_rate_bpm], [xs, metrics]);
   const ampData: uPlot.AlignedData = useMemo(() => [xs, metrics.amplitude_rel], [xs, metrics]);
 
@@ -107,6 +105,7 @@ export function NightTrends({ startUtc, metrics, onPickTime, height = 180 }: Pro
           data={rrData}
           height={height}
           makeOptions={makeOptions("Resp. rate", "bpm", 1, [5, 35])}
+          deps={[markersKey]}
         />
       </figure>
       <figure>
@@ -117,6 +116,7 @@ export function NightTrends({ startUtc, metrics, onPickTime, height = 180 }: Pro
           data={ampData}
           height={height}
           makeOptions={makeOptions("Rel. amplitude", "×", 2, [0, 1.6])}
+          deps={[markersKey]}
         />
       </figure>
     </div>
@@ -137,4 +137,36 @@ export function QualityLegend() {
       </span>
     </div>
   );
+}
+
+/**
+ * Click = a moment, drag = a stretch. uPlot fires its select hook on mouse-up, and the
+ * browser fires "click" right after; the flag stops a drag from also counting as a click.
+ */
+export function pickHooks(onPick: (start: number, end: number | null) => void): uPlot.Hooks.Arrays {
+  let justDragged = false;
+  return {
+    setSelect: [
+      (u) => {
+        if (u.select.width > 3) {
+          justDragged = true;
+          const start = u.posToVal(u.select.left, "x");
+          const end = u.posToVal(u.select.left + u.select.width, "x");
+          onPick(start, end);
+        }
+        u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false); // clear the grey box
+      },
+    ],
+    ready: [
+      (u) => {
+        u.over.addEventListener("click", () => {
+          if (justDragged) {
+            justDragged = false;
+            return;
+          }
+          if (u.cursor.left != null && u.cursor.left >= 0) onPick(u.posToVal(u.cursor.left, "x"), null);
+        });
+      },
+    ],
+  };
 }
