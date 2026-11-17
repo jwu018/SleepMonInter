@@ -445,3 +445,16 @@ Done in one pass at the owner's request.
 
 **Decisions**
 - Owner chose 1.0 s. Owner asked for a lower peak threshold if it had no downside; 0.1 does (restless error 6.0%), so 0.15 was used as the near-free middle.
+
+## 2026-11-17 — Next.js security upgrade 16.4.2 -> 16.4.6
+
+**Done**
+- `web/`: `next` and `eslint-config-next` pinned to 16.4.6 (`package.json`, `package-lock.json`). The old version is affected by a published security advisory; `npm audit --omit=dev` now reports 0 vulnerabilities.
+- `web/next.config.ts`: added `experimental.agentUpgrade: "security"`. Other settings unchanged.
+- Checks: eslint, tsc, 31 web tests, `npm run build` all clean; `next start` served `/login` (200) and redirected `/` to login (307).
+
+**Decisions**
+- Owner chose to upgrade in place with no git commands (no worktree, branch/PR checks, or commit), per the no-git rule.
+
+**Deferred**
+- `npm audit` still lists 15 advisories in dev-only tooling (e.g. minimatch, picomatch); not part of this upgrade.
