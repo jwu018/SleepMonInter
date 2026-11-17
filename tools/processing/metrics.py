@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+from scipy.ndimage import maximum_filter1d, minimum_filter1d, uniform_filter1d
 
 from .breaths import Breaths
 
@@ -81,15 +82,89 @@ def relative_amplitude(x_filt: np.ndarray, breaths: Breaths) -> np.ndarray:
     return depth / median if median > 0 else np.full_like(depth, np.nan)
 
 
-def find_pauses(
-    breaths: Breaths, fs_hz: float, min_pause_s: float = 10.0
-) -> list[tuple[float, float]]:
-    """(start_s, end_s) of every stretch longer than `min_pause_s` with no breathing.
+def amplitude_per_minute(
+    filtered: np.ndarray, breaths: Breaths, fs_hz: float, n_minutes: int
+) -> np.ndarray:
+    """Mean relative depth of the breaths whose peak falls in each minute (NaN if none)."""
+    p, t = breaths.peak_idx, breaths.trough_idx
+    out = np.full(n_minutes, np.nan)
+    if len(p) == 0 or len(t) == 0:
+        return out
+    has_trough = np.searchsorted(t, p) - 1 >= 0
+    rel = relative_amplitude(filtered, breaths)  # one value per peak that has a trough before it
+    minute = (p[has_trough] / fs_hz // 60).astype(np.int64)
+    ok = minute < n_minutes
+    total = np.bincount(minute[ok], weights=rel[ok], minlength=n_minutes)
+    count = np.bincount(minute[ok], minlength=n_minutes)
+    out[count > 0] = total[count > 0] / count[count > 0]
+    return out
 
-    During normal breathing a turning point (peak or trough) comes every ~1-3 s. A breath
-    hold is a long stretch with none: from the last turning point before it to the first one
-    after it. Descriptive only: label these "breathing pause > 10 s", never a diagnosis.
+
+def median_breath_depth(x_filt: np.ndarray, breaths: Breaths) -> float:
+    """The typical breath size: median of (peak minus the trough before it). NaN if no breaths."""
+    p, t = breaths.peak_idx, breaths.trough_idx
+    if len(p) == 0 or len(t) == 0:
+        return float("nan")
+    before = np.searchsorted(t, p) - 1
+    has_trough = before >= 0
+    if not has_trough.any():
+        return float("nan")
+    return float(np.median(x_filt[p[has_trough]] - x_filt[t[before[has_trough]]]))
+
+
+def find_pauses(
+    cleaned: np.ndarray,
+    typical_depth: float,
+    fs_hz: float,
+    min_pause_s: float = 10.0,
+    window_s: float = 3.0,
+    still_fraction: float = 0.2,
+    smooth_s: float = 0.4,
+) -> list[tuple[float, float]]:
+    """(start_s, end_s) of every stretch longer than `min_pause_s` where the chest barely moves.
+
+    "Barely moves" = within any `window_s` the signal changes by less than `still_fraction`
+    of a typical breath (`typical_depth`, from `median_breath_depth`).
+
+    Why this looks at the CLEANED signal and not the band-passed one: the band-pass removes
+    everything slower than 0.1 Hz, and a breath hold IS slow (a flat line for 10+ s). The
+    filter bends that flat line back toward zero, which creates a low hump with a fake peak
+    in the middle of the hold. Counting the gap between turning points of the filtered signal
+    therefore missed most 11-15 s pauses (see docs/FILTERING.md). Movement inside a 3 s
+    window needs no high-pass: drift is far too slow to matter over 3 s.
+
+    Steps:
+    1. Average over `smooth_s` so sensor noise doesn't count as movement.
+    2. Movement at each sample = max - min of the smoothed signal in the surrounding window.
+    3. A run of low movement is a pause. A window that still touches the last breath isn't
+       "still", so each run is half a window short at both ends; add that back.
+
+    Data gaps are not pauses: a window containing missing data is never "still".
+    Descriptive only: label these "breathing pause > 10 s", never a diagnosis. A chest band
+    can't see a pause where the child keeps trying to breathe against a blocked airway.
     """
-    turning = np.sort(np.concatenate([breaths.peak_idx, breaths.trough_idx])) / fs_hz
-    gaps = np.diff(turning)
-    return [(float(turning[i]), float(turning[i + 1])) for i in np.flatnonzero(gaps > min_pause_s)]
+    x = np.asarray(cleaned, dtype=float)
+    finite = np.isfinite(x)
+    if not np.isfinite(typical_depth) or typical_depth <= 0 or finite.sum() < 3:
+        return []
+    size = max(3, int(round(window_s * fs_hz)) | 1)  # odd, so the window is centred
+    smooth_n = max(1, int(round(smooth_s * fs_hz)) | 1)
+    half_s = (size // 2) / fs_hz
+
+    idx = np.arange(len(x))
+    bridged = np.interp(idx, idx[finite], x[finite])  # the filters below can't skip NaN
+    smooth = uniform_filter1d(bridged, smooth_n, mode="nearest")
+    movement = maximum_filter1d(smooth, size, mode="nearest") - minimum_filter1d(
+        smooth, size, mode="nearest"
+    )
+    has_gap = maximum_filter1d((~finite).astype(np.int8), size, mode="nearest") > 0
+    still = (movement < still_fraction * typical_depth) & ~has_gap
+
+    edges = np.diff(np.concatenate([[0], still.astype(np.int8), [0]]))
+    pauses = []
+    for s, e in zip(np.flatnonzero(edges == 1), np.flatnonzero(edges == -1), strict=True):
+        start_s = max(0.0, s / fs_hz - half_s)
+        end_s = min((len(x) - 1) / fs_hz, (e - 1) / fs_hz + half_s)
+        if end_s - start_s > min_pause_s:
+            pauses.append((float(start_s), float(end_s)))
+    return pauses

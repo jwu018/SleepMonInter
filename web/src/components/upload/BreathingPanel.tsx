@@ -8,6 +8,7 @@ import {
   countCompleteBreaths,
   GOOD_SIR_DB,
   GOOD_SNR_DB,
+  PROCESSING_SETTINGS,
   PAUSE_S,
   snrSirDb,
 } from "@/lib/processing/breathing";
@@ -93,7 +94,7 @@ export function BreathingPanel({
         <StatTile
           label={`Pauses > ${PAUSE_S} s`}
           value={analysis.pauses.length}
-          note="Review markers, not a diagnosis"
+          note="Chest nearly still (under 20% of a typical breath). Review markers, not a diagnosis"
         />
         <StatTile
           label="Readings removed"
@@ -159,6 +160,24 @@ export function BreathingPanel({
           ))}
         </ul>
       )}
+
+      <details className="text-sm">
+        <summary className="cursor-pointer text-muted">How this recording was processed</summary>
+        <p className="mt-2 text-muted">
+          To see what the filter took out, choose “Removed by the filter” or “Belt inductance (raw)” in the Signal
+          list above the chart.
+        </p>
+        <dl className="mt-2 space-y-2">
+          {PROCESSING_SETTINGS.map((s) => (
+            <div key={s.step}>
+              <dt className="font-medium">
+                {s.step}: <span className="font-normal">{s.setting}</span>
+              </dt>
+              <dd className="text-muted">{s.effect}</dd>
+            </div>
+          ))}
+        </dl>
+      </details>
     </div>
   );
 }

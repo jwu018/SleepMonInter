@@ -12,17 +12,20 @@ import {
   nanPercentile,
   sosfiltfilt,
 } from "./dsp.ts";
-import { BANDPASS, type Coefficients, HIGHPASS, LOWPASS } from "./filterCoefficients.ts";
+import { BAND_HZ, BANDPASS, type Coefficients, HIGHPASS, LOWPASS } from "./filterCoefficients.ts";
 
 const VALID_RANGE_UH = [0.5, 100] as const;
 const MAX_JUMP_UH = 0.5;
 const MAX_STUCK_S = 0.5;
 const MAX_GAP_S = 2.0;
 const MIN_RUN_S = 10.0;
-const MIN_PERIOD_S = 1.5;
-const PROMINENCE_FRACTION = 0.2;
+const MIN_PERIOD_S = 1.0;
+const PROMINENCE_FRACTION = 0.15;
 const MIN_MINUTE_COVERAGE_S = 30.0;
 export const PAUSE_S = 10.0;
+export const PAUSE_WINDOW_S = 3.0; // movement is judged inside this window
+export const PAUSE_STILL_FRACTION = 0.2; // "still" = moves less than 20% of a typical breath
+const PAUSE_SMOOTH_S = 0.4; // average this long first, so sensor noise isn't movement
 // Signal quality (quality.py): starting thresholds, to be tuned on the Test 2 recordings.
 export const GOOD_SNR_DB = 15.0;
 export const GOOD_SIR_DB = 10.0;
@@ -31,6 +34,39 @@ const MIN_SIR_WINDOW_S = 30.0;
 const MAX_MISSING_FRACTION = 0.5;
 
 // --- load.py: put samples on an even grid by their scheduled sample index ------------------
+
+/**
+ * The settings above in words, for the "How this recording was processed" list on the upload
+ * page. Built from the constants so the page can't drift from the code. The reasons and the
+ * measurements behind them are in docs/FILTERING.md.
+ */
+export const PROCESSING_SETTINGS: { step: string; setting: string; effect: string }[] = [
+  {
+    step: "Reject impossible readings",
+    setting: `outside ${VALID_RANGE_UH[0]}–${VALID_RANGE_UH[1]} µH, repeated exactly for over ${MAX_STUCK_S} s, or more than ${MAX_JUMP_UH} µH from the 1 s median`,
+    effect: "Rejected readings become gaps and are counted in “Readings removed”. A breath is about 0.06 µH, so breathing is never rejected.",
+  },
+  {
+    step: "Bridge short gaps",
+    setting: `straight line across gaps of ${MAX_GAP_S} s or less`,
+    effect: "Longer gaps stay as visible gaps. Nothing is invented across them.",
+  },
+  {
+    step: "Band-pass filter",
+    setting: `${BAND_HZ[0]}–${BAND_HZ[1]} Hz (${Math.round(BAND_HZ[0] * 60)}–${Math.round(BAND_HZ[1] * 60)} breaths/min), run forward and backward`,
+    effect: "Removes slow drift and fast sensor noise. Keeps at least 95% of breath depth from 10 to 36 breaths/min. Does not shift breaths in time.",
+  },
+  {
+    step: "Find breaths",
+    setting: `peaks at least ${MIN_PERIOD_S} s apart that stand out by ${Math.round(PROMINENCE_FRACTION * 100)}% of the typical breath size`,
+    effect: `Measures up to about 55 breaths/min (hard limit ${Math.round(60 / MIN_PERIOD_S)}). Some breaths shallower than about 35% of normal are missed. Movement can add fake breaths in minutes marked poor.`,
+  },
+  {
+    step: "Find pauses",
+    setting: `chest moves less than ${Math.round(PAUSE_STILL_FRACTION * 100)}% of a typical breath for more than ${PAUSE_S} s`,
+    effect: "Measured on the cleaned signal, not the filtered one, because the filter distorts a flat line.",
+  },
+];
 
 export interface Grid {
   fs_hz: number;
@@ -265,11 +301,87 @@ export function relativeAmplitude(x: Float64Array, b: Breaths): number[] {
   return depths.map((d) => (m > 0 ? d / m : NaN));
 }
 
-export function findPauses(b: Breaths, fs: number, minPauseS = PAUSE_S): [number, number][] {
-  const turning = [...b.peak_idx, ...b.trough_idx].sort((a, c) => a - c).map((i) => i / fs);
+/** Typical breath size: the median of (peak minus the trough before it). NaN if no breaths. */
+export function medianBreathDepth(x: Float64Array, b: Breaths): number {
+  const depths: number[] = [];
+  for (const p of b.peak_idx) {
+    let before = -1;
+    for (const t of b.trough_idx) if (t < p) before = t;
+    if (before >= 0) depths.push(x[p] - x[before]);
+  }
+  return depths.length ? median(depths) : NaN;
+}
+
+/** Centred moving window over x with the edges repeated (scipy's mode="nearest"). */
+function rolling(x: Float64Array, size: number, combine: (window: Float64Array) => number): Float64Array {
+  const half = size >> 1;
+  const n = x.length;
+  const out = new Float64Array(n);
+  const window = new Float64Array(size);
+  for (let i = 0; i < n; i++) {
+    for (let k = 0; k < size; k++) window[k] = x[Math.min(n - 1, Math.max(0, i - half + k))];
+    out[i] = combine(window);
+  }
+  return out;
+}
+
+/**
+ * Stretches longer than `minPauseS` where the chest barely moves: within any 3 s the signal
+ * changes by less than 20% of a typical breath.
+ *
+ * This reads the CLEANED signal, not the band-passed one. The band-pass removes everything
+ * slower than 0.1 Hz, and a breath hold is slow: the filter bends the flat line into a low
+ * hump with a fake peak, which hid most 11-15 s pauses from the old turning-point rule.
+ * Same steps as find_pauses in tools/processing/metrics.py.
+ */
+export function findPauses(
+  cleaned: Float64Array,
+  typicalDepth: number,
+  fs: number,
+  minPauseS = PAUSE_S,
+): [number, number][] {
+  const n = cleaned.length;
+  let finiteCount = 0;
+  for (let i = 0; i < n; i++) if (Number.isFinite(cleaned[i])) finiteCount++;
+  if (!Number.isFinite(typicalDepth) || typicalDepth <= 0 || finiteCount < 3) return [];
+
+  const size = Math.max(3, Math.round(PAUSE_WINDOW_S * fs) | 1);
+  const smoothN = Math.max(1, Math.round(PAUSE_SMOOTH_S * fs) | 1);
+  const halfS = (size >> 1) / fs;
+
+  const smooth = rolling(interpolateNaN(cleaned), smoothN, (w) => {
+    let sum = 0;
+    for (const v of w) sum += v;
+    return sum / w.length;
+  });
+  const movement = rolling(smooth, size, (w) => {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const v of w) {
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    return hi - lo;
+  });
+  const missing = new Float64Array(n);
+  for (let i = 0; i < n; i++) missing[i] = Number.isFinite(cleaned[i]) ? 0 : 1;
+  const hasGap = rolling(missing, size, (w) => {
+    for (const v of w) if (v > 0) return 1;
+    return 0;
+  });
+
   const out: [number, number][] = [];
-  for (let i = 1; i < turning.length; i++) {
-    if (turning[i] - turning[i - 1] > minPauseS) out.push([turning[i - 1], turning[i]]);
+  let runStart = -1;
+  for (let i = 0; i <= n; i++) {
+    const still = i < n && movement[i] < PAUSE_STILL_FRACTION * typicalDepth && hasGap[i] === 0;
+    if (still && runStart < 0) runStart = i;
+    if (!still && runStart >= 0) {
+      // A window that still touches the last breath isn't "still", so add half a window back.
+      const startS = Math.max(0, runStart / fs - halfS);
+      const endS = Math.min((n - 1) / fs, (i - 1) / fs + halfS);
+      if (endS - startS > minPauseS) out.push([startS, endS]);
+      runStart = -1;
+    }
   }
   return out;
 }
@@ -279,6 +391,11 @@ export interface BreathingAnalysis {
   n_samples: number;
   /** Band-passed breathing signal on the even grid (index / fs_hz = seconds since start). */
   filtered: Float64Array;
+  /**
+   * What the band-pass took out: the cleaned signal (centred on its median) minus `filtered`.
+   * Shown on request so nobody has to trust that only drift and noise were removed.
+   */
+  removed: Float64Array;
   breaths: Breaths;
   pauses: [number, number][];
   rate_per_minute: (number | null)[];
@@ -309,12 +426,16 @@ export function analyzeRecording(rec: DeviceRecording): BreathingAnalysis | null
     noise: filterRuns(cleaned, grid.fs_hz, HIGHPASS),
     interference: filterRuns(cleaned, grid.fs_hz, LOWPASS),
   };
+  const finite = Array.from(cleaned).filter(Number.isFinite);
+  const centre = finite.length ? median(finite) : 0;
+  const removed = cleaned.map((v, i) => v - centre - filtered[i]); // NaN wherever either is NaN
   return {
     fs_hz: grid.fs_hz,
     n_samples: filtered.length,
     filtered,
+    removed,
     breaths,
-    pauses: findPauses(breaths, grid.fs_hz),
+    pauses: findPauses(cleaned, medianBreathDepth(filtered, breaths), grid.fs_hz),
     rate_per_minute: ratePerMinute(breaths, grid.fs_hz, filtered.length),
     removed_fraction: present ? 1 - kept / present : 0,
     bands,

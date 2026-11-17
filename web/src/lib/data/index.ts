@@ -3,6 +3,7 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { requireUser } from "@/lib/auth";
+import * as api from "./api";
 import type {
   Patient,
   PatientSummary,
@@ -11,13 +12,18 @@ import type {
 } from "./types";
 
 // The data-access layer: the ONLY place the app reads recording data.
-// Today it reads static files from web/data/ (built by tools/build_static_data.py).
-// In Phase 3 these functions will call the FastAPI backend instead; pages won't change.
+// It has two sources, chosen by the DATA_SOURCE environment variable:
+//   static (default): files in web/data/ (built by tools/build_static_data.py)
+//   api:              the FastAPI backend in api/ (see ./api.ts)
+// Pages call the same functions either way, so they never know which one is in use.
 //
 // Two rules every function here follows:
 //   1. Check the user first (requireUser) -- never return data to a logged-out visitor.
 //   2. Validate IDs before building a file path, so a crafted URL like
 //      /recordings/..%2F..%2Fsecret can't read files outside web/data/.
+
+/** Read on every call (not once at import) so tests and env changes take effect. */
+const apiEnabled = () => process.env.DATA_SOURCE === "api";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STUDY_CODE = /^NN-\d{3}$/;
@@ -68,6 +74,7 @@ async function readRecordingFile(recordingId: string): Promise<RecordingFile | n
 
 export async function listPatients(): Promise<PatientSummary[]> {
   await requireUser();
+  if (apiEnabled()) return api.listPatients();
   const index = await readJson<IndexFile>("index.json");
   // Strip the nested recordings: the list page only needs the summary fields.
   return index.patients.map(({ recordings: _recordings, ...summary }) => summary);
@@ -76,12 +83,15 @@ export async function listPatients(): Promise<PatientSummary[]> {
 export async function getPatient(studyCode: string): Promise<Patient | null> {
   await requireUser();
   if (!STUDY_CODE.test(studyCode)) return null;
+  if (apiEnabled()) return api.getPatient(studyCode);
   const index = await readJson<IndexFile>("index.json");
   return index.patients.find((p) => p.study_code === studyCode) ?? null;
 }
 
 export async function getRecording(recordingId: string): Promise<RecordingDetail | null> {
   await requireUser();
+  if (!RECORDING_ID.test(recordingId)) return null;
+  if (apiEnabled()) return api.getRecording(recordingId);
   const file = await readRecordingFile(recordingId);
   if (!file) return null;
   const { waveform: _waveform, ...detail } = file;
@@ -91,7 +101,7 @@ export async function getRecording(recordingId: string): Promise<RecordingDetail
 /**
  * Raw signal for [startMs, endMs), reduced to at most ~maxPoints points.
  *
- * When the window holds more points than that, it's split into buckets and each bucket
+ * Static source: when the window holds more points than that, it's split into buckets and each bucket
  * contributes its min and max. Drawing those as a line keeps spikes and the breathing
  * envelope visible, which plain "take every Nth point" would lose.
  */
@@ -102,6 +112,8 @@ export async function getWaveform(
   maxPoints: number,
 ): Promise<WaveformWindow | null> {
   await requireUser();
+  if (!RECORDING_ID.test(recordingId)) return null;
+  if (apiEnabled()) return api.getWaveform(recordingId, startMs, endMs, maxPoints);
   const file = await readRecordingFile(recordingId);
   if (!file) return null;
   const meta = file.waveform;

@@ -13,10 +13,11 @@ import type { BreathingAnalysis } from "@/lib/processing/breathing";
 // The raw signal of an uploaded recording, with zoom presets like the night view's
 // waveform panel. Everything is computed in the browser from the parsed file.
 
-type Channel = "breathing" | "ldc_L_uH" | "ldc_freq_hz" | "a0_raw" | "vbat_v";
+type Channel = "breathing" | "removed" | "ldc_L_uH" | "ldc_freq_hz" | "a0_raw" | "vbat_v";
 const CHANNELS: Record<Channel, { label: string; unit: string; digits: number }> = {
   breathing: { label: "Breathing (filtered, with detected breaths)", unit: "µH", digits: 4 },
-  ldc_L_uH: { label: "Belt inductance", unit: "µH", digits: 5 },
+  removed: { label: "Removed by the filter (raw minus filtered)", unit: "µH", digits: 4 },
+  ldc_L_uH: { label: "Belt inductance (raw)", unit: "µH", digits: 5 },
   ldc_freq_hz: { label: "Sensor frequency", unit: "Hz", digits: 1 },
   a0_raw: { label: "Auxiliary input a0 (debug only)", unit: "counts", digits: 0 },
   vbat_v: { label: "Battery voltage", unit: "V", digits: 3 },
@@ -49,7 +50,7 @@ export function DeviceTrace({
   const hasBattery = recording.battery !== null;
   // Why a channel can't be shown for this file, or null if it can.
   const missingReason = (c: Channel): string | null =>
-    c === "breathing"
+    c === "breathing" || c === "removed"
       ? analysis
         ? null
         : "no analysis"
@@ -76,9 +77,15 @@ export function DeviceTrace({
 
   const points = useMemo(
     () =>
-      channel === "breathing" && analysis && gridMs
-        ? tracePoints(gridMs, analysis.filtered, startMs, endMs, MAX_POINTS)
-        : tracePoints(columns.elapsed_ms, columns[channel === "breathing" ? "ldc_L_uH" : channel], startMs, endMs, MAX_POINTS),
+      (channel === "breathing" || channel === "removed") && analysis && gridMs
+        ? tracePoints(gridMs, channel === "removed" ? analysis.removed : analysis.filtered, startMs, endMs, MAX_POINTS)
+        : tracePoints(
+            columns.elapsed_ms,
+            columns[channel === "breathing" || channel === "removed" ? "ldc_L_uH" : channel],
+            startMs,
+            endMs,
+            MAX_POINTS,
+          ),
     [columns, channel, startMs, endMs, analysis, gridMs],
   );
   const data: uPlot.AlignedData = useMemo(() => [points.x, points.y], [points]);

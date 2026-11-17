@@ -163,9 +163,11 @@ export function WaveformPanel({ recordingId, startUtc, durationMs, focusMs, mark
           </button>
         </div>
         <span className="text-xs text-muted">
-          {state.status === "ready" && state.window.resolution === "envelope"
-            ? "Zoomed out: showing the min–max envelope of the signal"
-            : "Showing every stored point (12.5 Hz)"}
+          {state.status !== "ready" || state.window.resolution === "raw"
+            ? "Showing every stored point (12.5 Hz)"
+            : state.window.resolution === "envelope"
+              ? "Zoomed out: showing the min–max envelope of the signal"
+              : "Zoomed out: showing selected samples that keep the shape of the signal"}
         </span>
       </div>
 

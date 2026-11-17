@@ -1,0 +1,18 @@
+# Keeps secrets, caches and large local data out of the Docker build (see api/Dockerfile).
+**/.env
+**/.env.*
+!.env.example
+.git
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/node_modules
+web/.next
+api/file_store
+sample_data
+irl_sample_data
+project_data
+night_night_logger
+docs
+PRD.md

@@ -1,0 +1,5 @@
+# Development-only tools. Never needed at runtime.
+ruff==0.17.1
+pytest==9.1.1
+# FastAPI's TestClient sends requests to the app in memory through httpx (no server needed).
+httpx==0.28.1

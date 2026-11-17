@@ -23,23 +23,9 @@ export function breathByBreathRate(breaths: Breaths, fs: number, offsetS = 0): X
   return { x, y };
 }
 
-/**
- * Typical breath depth (median of peak minus the trough before it). Dividing a recording's
- * filtered signal by this puts different belt fits on the same scale: a normal breath ~ 1.
- */
-export function medianBreathDepth(filtered: Float64Array, breaths: Breaths): number {
-  const depths: number[] = [];
-  let ti = 0;
-  for (const p of breaths.peak_idx) {
-    while (ti + 1 < breaths.trough_idx.length && breaths.trough_idx[ti + 1] < p) ti++;
-    const t = breaths.trough_idx[ti];
-    if (t !== undefined && t < p) depths.push(filtered[p] - filtered[t]);
-  }
-  if (depths.length === 0) return NaN;
-  depths.sort((a, b) => a - b);
-  const mid = depths.length >> 1;
-  return depths.length % 2 ? depths[mid] : (depths[mid - 1] + depths[mid]) / 2;
-}
+// Typical breath depth. Dividing a recording's filtered signal by this puts different belt
+// fits on the same scale: a normal breath ~ 1. (Lives in breathing.ts; re-exported here.)
+export { medianBreathDepth } from "./breathing.ts";
 
 /**
  * Put several series with different x values on one shared x axis (uPlot needs that).

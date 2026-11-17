@@ -1,0 +1,15 @@
+# Runtime dependencies for the API. Pinned exactly so every machine runs the same versions.
+fastapi==0.163.1
+uvicorn[standard]==0.54.0
+pydantic==2.14.3
+pydantic-settings==2.16.3
+# Database: SQLAlchemy talks to Postgres through the psycopg driver; Alembic runs migrations.
+sqlalchemy==2.1.9
+alembic==1.20.1
+psycopg[binary]==3.3.9
+# Waveform downsampling and reading the stored signal files.
+numpy==2.5.4
+# The breathing algorithm in tools/processing (imported through app/toolbox.py) uses scipy.
+scipy==1.18.1
+# Lets FastAPI read file uploads (multipart forms).
+python-multipart==0.0.34

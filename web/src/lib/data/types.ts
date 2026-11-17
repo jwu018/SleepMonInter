@@ -44,6 +44,8 @@ export interface MinuteMetrics {
 export interface RecordingDetail extends RecordingSummary {
   sample_period_ms: number;
   status: "uploaded" | "processing" | "processed" | "failed";
+  /** Why processing failed (API source only). */
+  error_message?: string | null;
   metrics: MinuteMetrics;
 }
 
@@ -55,6 +57,9 @@ export interface WaveformWindow {
   raw_value: (number | null)[]; // null = data gap
   /** Unit of raw_value, e.g. "µH" (belt inductance). */
   unit: string;
-  /** "raw" = every stored point; "envelope" = min/max pairs per bucket (zoomed out). */
-  resolution: "raw" | "envelope";
+  /**
+   * "raw" = every stored point. Zoomed out, the static source sends "envelope" (min/max
+   * pairs per bucket) and the API sends "lttb" (real samples picked to keep the shape).
+   */
+  resolution: "raw" | "envelope" | "lttb";
 }

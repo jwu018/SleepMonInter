@@ -25,9 +25,9 @@ class Breaths:
 def detect_breaths(
     x_filt: np.ndarray,
     fs_hz: float,
-    min_period_s: float = 1.5,
+    min_period_s: float = 1.0,
     min_prominence: float | None = None,
-    prominence_fraction: float = 0.2,
+    prominence_fraction: float = 0.15,
 ) -> Breaths:
     """Find inhale peaks and exhale troughs, alternating trough, peak, trough, peak...
 
@@ -35,8 +35,15 @@ def detect_breaths(
        have tiny prominence; breaths have large prominence. If not given, the threshold is
        `prominence_fraction` of the typical breath size (5th-95th percentile spread), so it
        adapts to deep and shallow breathers alike while ignoring noise during a breath hold.
-    2. Refractory period: two peaks closer than `min_period_s` (1.5 s = 40 breaths/min) are
+    2. Refractory period: two peaks closer than `min_period_s` (1.0 s = 60 breaths/min) are
        one breath with a wobble, so `distance` keeps only the bigger one.
+
+    Why 1.0 s and 0.15 (changed 2026-11-17, measured in docs/FILTERING.md):
+    - 1.5 s capped the count at 40/min, and breathing at 40-60/min was reported as about
+      half its true rate. 1.0 s measures correctly up to about 55/min. The cost: movement
+      artifacts produce more fake breaths, so minutes already labelled poor get noisier.
+    - 0.2 missed about a third of breaths shallower than 35% of normal; 0.15 halves that.
+      Going lower (0.1) finds still more but counts more noise as breaths.
     3. Peaks on x are one kind of turning point; peaks on -x (troughs) are the other.
     4. Alternation: real breathing alternates. If two peaks occur with no trough between
        them, keep the higher one; two troughs in a row, keep the lower one.

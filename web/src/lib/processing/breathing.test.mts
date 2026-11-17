@@ -8,7 +8,6 @@ import { parseDeviceCsv } from "../device/parseDeviceCsv.ts";
 import {
   analyzeRecording,
   countCompleteBreaths,
-  findPauses,
   relativeAmplitude,
   removeGlitches,
   snrSirDb,
@@ -45,7 +44,7 @@ test("counts, rates, amplitude and pauses match Python", () => {
     else assert.ok(v !== null && Math.abs(v - e) < 1e-9, `minute ${k}`);
   });
   assert.ok(Math.abs(median(relativeAmplitude(analysis.filtered, analysis.breaths)) - expected.amplitude_median) < 1e-9);
-  const pauses = findPauses(analysis.breaths, fs);
+  const pauses = analysis.pauses;
   assert.equal(pauses.length, expected.pauses.length);
   pauses.forEach(([a, b], i) => {
     assert.ok(Math.abs(a - expected.pauses[i][0]) < 1e-9 && Math.abs(b - expected.pauses[i][1]) < 1e-9);

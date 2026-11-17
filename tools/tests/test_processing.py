@@ -16,12 +16,13 @@ import pytest
 
 import trial_report
 from generate_synthetic import INHALE_FRACTION, PROFILES, simulate_night, write_recording
-from processing.breaths import Breaths
+from processing.breaths import Breaths, detect_breaths
 from processing.filters import bandpass, remove_glitches
 from processing.load import fill_short_gaps, load_trial
 from processing.metrics import (
     count_complete_breaths,
     find_pauses,
+    median_breath_depth,
     percent_error,
     relative_amplitude,
     respiratory_rate_per_minute,
@@ -216,13 +217,35 @@ def test_relative_amplitude_is_about_one_for_normal_breathing(tmp_path: Path) ->
     assert 0.9 <= np.median(amp) <= 1.1
 
 
-def test_find_pauses_reports_long_holds(tmp_path: Path) -> None:
-    breaths = Breaths(
-        peak_idx=np.array([25, 100, 175, 600, 675]), trough_idx=np.array([0, 60, 140, 560, 640])
-    )
-    # Turning points at 0, 1, 2.4, 4, 5.6, 7 s, then nothing until the trough at 22.4 s.
-    pauses = find_pauses(breaths, FS, min_pause_s=10)
-    assert pauses == [(7.0, 22.4)]
+def _breathing_with_hold(hold_s: float) -> np.ndarray:
+    """16 breaths/min around 4.1 uH, with the chest held still for `hold_s` starting at 60 s."""
+    t = np.arange(int(150 * FS)) / FS
+    breathing_time = np.where(t < 60, t, np.maximum(t - hold_s, 60.0))  # time stops in the hold
+    return 4.1 - 0.03 * np.cos(2 * np.pi * (16 / 60) * breathing_time)
+
+
+@pytest.mark.parametrize("hold_s", [12.0, 15.0, 30.0])
+def test_find_pauses_reports_long_holds(hold_s: float) -> None:
+    x = _breathing_with_hold(hold_s)
+    filtered = bandpass(x, FS)
+    depth = median_breath_depth(filtered, detect_breaths(filtered, FS))
+    assert depth == pytest.approx(0.06, rel=0.1)
+    pauses = find_pauses(x, depth, FS)
+    assert len(pauses) == 1
+    start_s, end_s = pauses[0]
+    # The hold starts at the bottom of a breath, where the chest is already nearly still, so
+    # the reported pause may be up to ~1.5 s longer than the hold itself.
+    assert 58.0 <= start_s <= 60.5
+    assert 60 + hold_s - 0.5 <= end_s <= 60 + hold_s + 2.0
+
+
+def test_find_pauses_ignores_short_holds_normal_breathing_and_data_gaps() -> None:
+    depth = 0.06
+    assert find_pauses(_breathing_with_hold(5.0), depth, FS) == []
+    assert find_pauses(_breathing_with_hold(0.0), depth, FS) == []
+    gap = _breathing_with_hold(0.0)
+    gap[int(60 * FS) : int(80 * FS)] = np.nan  # 20 s of lost samples is not a breathing pause
+    assert find_pauses(gap, depth, FS) == []
 
 
 def test_count_complete_breaths_ignores_a_half_breath_at_each_end() -> None:

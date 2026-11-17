@@ -21,7 +21,12 @@ from scipy.signal import butter, sosfilt_zi
 
 from generate_synthetic import PROFILES, simulate_night, write_recording
 from processing.load import load_trial
-from processing.metrics import find_pauses, relative_amplitude, respiratory_rate_per_minute
+from processing.metrics import (
+    find_pauses,
+    median_breath_depth,
+    relative_amplitude,
+    respiratory_rate_per_minute,
+)
 from processing.pipeline import process_trial
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -83,7 +88,9 @@ def export_fixture() -> None:
         "rate_bpm_trimmed": result.rate_bpm,
         "rate_per_minute": [None if np.isnan(v) else v for v in rr],
         "amplitude_median": float(np.median(amp)),
-        "pauses": find_pauses(result.breaths, trial.fs_hz),
+        "pauses": find_pauses(
+            result.cleaned, median_breath_depth(result.filtered, result.breaths), trial.fs_hz
+        ),
         # A few filtered values to check the filter numerically.
         "filtered_samples": {str(i): float(result.filtered[i]) for i in (0, 250, 1000, 2500, 4400)},
         "snr_db_trimmed": result.snr_db,
